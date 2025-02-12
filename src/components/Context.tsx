@@ -40,12 +40,12 @@ import {
 	jsonToSubGraphs,
 	subGraphToJson
 } from "../Graph/JsonUtil";
-import CustomNode from "./nodes/CustomNode";
 
 import {StepEdge} from "@xyflow/react";
 import RunWindow from "../GraphMenu/RunWindow";
 import ConfigWindow from "../GraphMenu/ConfigWindow";
 import CustomEdge from "../Graph/CustomEdge.tsx";
+import CustomNode from "../Graph/CustomNode.tsx";
 
 interface Project {
 	name: string;

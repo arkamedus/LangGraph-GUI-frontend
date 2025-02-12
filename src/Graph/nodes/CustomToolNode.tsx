@@ -11,6 +11,7 @@ export const CustomToolNode: React.FC<CustomNodeRenderProps> = ({ data, onChange
 			{/* (If you want a name as well, include it here) */}
 
 			{/* Description */}
+
 			<label className="block text-xs">Description:</label>
 			<textarea
 				value={data.description || ""}

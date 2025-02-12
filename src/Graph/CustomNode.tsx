@@ -7,8 +7,8 @@ import { nodeRegistry } from "./NodeRegistry";
 
 const baseHandleStyle = {
     borderRadius: '50%',
-    width: 18,
-    height: 18,
+    width: 14,
+    height: 14,
     background: '#555'
 };
 
@@ -104,7 +104,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
                             id={port.id}
                             style={baseHandleStyle}
                         />
-                        <span style={{ marginLeft: 12,marginRight:12, fontSize: '10px', color: '#333' }}>
+                        <span style={{ marginLeft: 4, fontSize: '10px', color: '#333' }}>
 							{port.label}
 						</span>
                     </div>
@@ -139,63 +139,10 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
             {renderHandles(nodeDef.inputs, 'target')}
             {/* Render output handles */}
             {renderHandles(nodeDef.outputs, 'source')}
-            <Page style={{ height: "100%" }}>
+            <Page >
                 <Content>
+                    test
                     {nodeTypeSwitch()}
-                </Content>
-                <Content>
-                    {localData.type !== 'START' && (
-                        <>
-                            {['STEP', 'CONDITION', 'INFO', 'SUBGRAPH'].includes(localData.type) && (
-                                <div>
-                                    <label htmlFor={generateFieldId("name")} className="block text-xs">
-                                        Name:
-                                    </label>
-                                    <input
-                                        id={generateFieldId("name")}
-                                        name="name"
-                                        value={localData.name || ""}
-                                        onChange={(e) => handleChange("name", e.target.value)}
-                                        onBlur={handleBlur}
-                                        className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
-                                        autoComplete="off"
-                                    />
-                                </div>
-                            )}
-                            {localData.type === 'STEP' && (
-                                <div>
-                                    <label htmlFor={generateFieldId("tool")} className="block text-xs">
-                                        Tool:
-                                    </label>
-                                    <input
-                                        id={generateFieldId("tool")}
-                                        name="tool"
-                                        value={localData.tool || ""}
-                                        onChange={(e) => handleChange("tool", e.target.value)}
-                                        onBlur={handleBlur}
-                                        className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
-                                        autoComplete="off"
-                                    />
-                                </div>
-                            )}
-                            {['STEP', 'TOOL', 'CONDITION', 'INFO'].includes(localData.type) && (
-                                <div className="flex-grow relative">
-                                    <label htmlFor={generateFieldId("description")} className="block text-xs">
-                                        Description:
-                                    </label>
-                                    <textarea
-                                        id={generateFieldId("description")}
-                                        name="description"
-                                        value={localData.description || ""}
-                                        onChange={(e) => handleChange("description", e.target.value)}
-                                        onBlur={handleBlur}
-                                        className="nodrag w-full h-[calc(100%_-_20px)] absolute top-[20px] left-0 resize-none bg-white border border-gray-300 rounded focus:outline-none"
-                                        autoComplete="off"
-                                    />
-                                </div>
-                            )}
-                        </>
-                    )}
                 </Content>
                 <Content grow>
                     {nodeDef.render({ data: localData, onChange: handleChange })}

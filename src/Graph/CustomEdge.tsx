@@ -1,7 +1,7 @@
 // Graph/CustomEdge.tsx
 
 import React from 'react';
-import {EdgeProps, getBezierPath, getSmoothStepPath, Position} from '@xyflow/react';
+import {EdgeProps, getSmoothStepPath, Position} from '@xyflow/react';
 
 interface CustomEdgeProps extends Omit<EdgeProps, 'markerEnd'> {
     sourcePosition: Position;
