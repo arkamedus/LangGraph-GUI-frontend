@@ -11,14 +11,15 @@ import {
 	ReactFlowProps,
 	useReactFlow
 } from "@xyflow/react";
-import {useGraph} from "../Graph/GraphContext.tsx";
+import {SubGraph, useGraph} from "../Graph/GraphContext.tsx";
 import {useGraphActions} from "../Graph/GraphActions.tsx";
 import {Edge as ReactFlowEdge} from "@xyflow/react/dist/esm/types/edges";
 import CustomEdge from "../Graph/CustomEdge.tsx";
 import CustomNode from "../Graph/CustomNode.tsx";
-import GraphPanel from "../Graph/GraphPanel.tsx";
 import 'oakd/build/index.css';
 import SubGraphTree from "./SubGraphTree.tsx";
+import {loadJsonFromFile, saveJsonToFile} from "../utils/JsonIO.ts";
+import {allSubGraphsToJson, JsonSubGraph, jsonToSubGraph, jsonToSubGraphs, subGraphToJson} from "../Graph/JsonUtil.tsx";
 
 
 export const Context: React.FC = () => {
@@ -27,7 +28,7 @@ export const Context: React.FC = () => {
 	const [isRunWindowOpen, setIsRunWindowOpen] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
-	const {subGraphs, currentGraphName, updateNodeData, handleNodesChange, handleEdgesChange, getCurrentGraph} = useGraph();
+	const {subGraphs, currentGraphName, addSubGraph, updateNodeData, handleNodesChange, handleEdgesChange, getCurrentGraph, removeSubGraph, updateSubGraph} = useGraph();
 	const [contextMenu, setContextMenu] = useState<{mouseX: number, mouseY: number, nodeId: string | null, edgeId:string | null, type: 'panel' | 'node' | 'edge'} | null>(null);
 	const [canvasHeight, setCanvasHeight] = useState<number>(window.innerHeight);
 	const menuBarRef = useRef<HTMLDivElement>(null);  //ref for menu bar
@@ -52,7 +53,44 @@ export const Context: React.FC = () => {
 		event.preventDefault();
 		event.stopPropagation();
 		console.log("handleEdgeClick", edge)
-	}, [])
+	}, []);
+
+
+	const handleAddGraph = () => {
+		const newGraphName = prompt("Enter a new graph name:");
+		if (newGraphName) {
+			addSubGraph(newGraphName);
+		}
+	};
+
+	const handleLoadSubGraph = async () => {
+		try {
+			const jsonData = await loadJsonFromFile();
+
+			if (jsonData) {
+
+				// Make sure jsonData is JsonSubGraph
+				if(!jsonData.name || !jsonData.nodes || !jsonData.serial_number){
+					throw new Error("Invalid Json Format: must be JsonSubGraph")
+				}
+
+				const loadedSubGraph: SubGraph = jsonToSubGraph(jsonData as JsonSubGraph);
+
+				updateSubGraph(loadedSubGraph.graphName, loadedSubGraph);
+
+				alert('Subgraph loaded successfully!');
+			}
+		} catch (error) {
+			console.error("Error loading subgraph:", error);
+			alert('Failed to load subgraph: ' + error);
+		}
+	};
+	const handleSaveSubGraph = () => {
+		const currentGraph = getCurrentGraph();
+		const jsonData = subGraphToJson(currentGraph);
+		saveJsonToFile(`${currentGraph.graphName}.json`, jsonData);
+	};
+
 
 
 	const reactFlowProps = useMemo<ReactFlowProps>(() => ({
@@ -99,6 +137,37 @@ export const Context: React.FC = () => {
 		setIsRunWindowOpen(true);
 	}
 
+	const handleNewGraph = () => {
+		console.log("New Graph clicked");
+	};
+
+	const handleLoadGraph = async () => {
+		try {
+			const jsonData = await loadJsonFromFile();
+			if(jsonData){
+				const loadedSubGraphs: SubGraph[] = jsonToSubGraphs(jsonData);
+
+				//Clear subgraphs first
+				subGraphs.forEach(graph => {
+					if(graph.graphName !== 'root') removeSubGraph(graph.graphName)
+				})
+				//Then load new subgraphs
+				loadedSubGraphs.forEach(subGraph => updateSubGraph(subGraph.graphName,subGraph))
+
+				alert('Graph loaded successfully!');
+			}
+
+		} catch (error) {
+			console.error("Error loading graph:", error);
+			alert('Failed to load graph: ' + error);
+		}
+	};
+
+	const handleSaveGraph = () => {
+		const jsonData = allSubGraphsToJson(subGraphs);
+		saveJsonToFile("Save.json", jsonData);
+	};
+
 	return (<Page fixed gap>
 		<Content>
 			<DebugLayer label="LangGraph-GUI" >
@@ -106,19 +175,31 @@ export const Context: React.FC = () => {
 					<Button icon="Bar" size={"default"} onClick={()=>{
 					setSidebarOpen(!sidebarOpen);
 				}}/>
-				
+
+					<Button  onClick={handleNewGraph}>New Graph</Button>
+					<Button  onClick={handleLoadGraph}>Load Graph</Button>
+					<Button  onClick={handleSaveGraph}>Save Graph</Button>
 
 				</Space>
 			</DebugLayer>
 		</Content>
 		<ContentRow>
 			<Content pad style={{display: sidebarOpen?"block":"none", maxWidth:"320px"}}>
-				<Title>Sidebar</Title>
+
 				<Content>
-					<Card pad><SubGraphTree graphs={subGraphs} onSelect={(item)=>{
+					<Paragraph>Graph Tree</Paragraph>
+					<Card pad>
+						<SubGraphTree graphs={subGraphs} onSelect={(item)=>{
 						console.log('SELECTED', item);
-					}}/></Card></Content>
-				<Paragraph>{JSON.stringify(getCurrentGraph())}</Paragraph>
+					}}/>
+					</Card>
+					<Space justify={"stretch"}>
+						<Button  onClick={handleAddGraph}>Add Subgraph</Button>
+						<Button onClick={handleLoadSubGraph}>Load Subgraph</Button>
+						<Button  onClick={handleSaveSubGraph}>Save Subgraph</Button>
+					</Space>
+				</Content>
+				<Paragraph>{JSON.stringify(subGraphs)}</Paragraph>
 			</Content>
 			<Content grow style={{width:"100%",height:"100%"}}>
 				<DebugLayer label={"Graph"}><ReactFlow
