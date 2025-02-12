@@ -4,6 +4,8 @@
 
 .oakd {
   --border-radius: 4px;
+  --gap-sizing: 7pt;
+  --leading: 7pt;
 }
 
 :root {

@@ -144,8 +144,8 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
                 </Content>
                 {nodeDef.render({ data: localData, onChange: handleChange })}
             </Page>
-            <NodeResizeControl minWidth={200} minHeight={200}>
-                <IconTriangle />
+            <NodeResizeControl minWidth={200} minHeight={100}>
+                <IconTriangle size={"small"} />
             </NodeResizeControl>
         </div>
     );

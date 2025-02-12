@@ -572,10 +572,6 @@ export const Context: React.FC = () => {
 							</DebugLayer>
 						</Content>
 					</ContentRow>
-
-					<Content>
-						<DebugLayer label="Footer"/>
-					</Content>
 				</>
 			)}
 		</Page>
