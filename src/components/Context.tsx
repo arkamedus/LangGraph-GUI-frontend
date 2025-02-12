@@ -182,7 +182,7 @@ export const Context: React.FC = () => {
 
 	/** Creates a fresh new project with no subgraphs. */
 	const handleNewProject = () => {
-		const name = prompt("Enter a new project name:");
+		const name = prompt("Enter a new Graph name:");
 		if (!name) return;
 
 		const newProject: Project = {name, graphs: []};
@@ -397,21 +397,21 @@ export const Context: React.FC = () => {
 			{!currentProject ? (
 				<>
 					<Content><DebugLayer label={"LangGraph-GUI"}/></Content>
-				<Content>
-					<DebugLayer label="Select a Project"/>
-					<Title>Select a Project</Title>
-					{projects.length === 0 && <Paragraph>No projects available.</Paragraph>}
-					<Space>
-						{projects.map((proj) => (
-							<Button key={proj.name} onClick={() => handleSelectProject(proj)}>
-								{proj.name}
-							</Button>
-						))}
-					</Space>
-					<Space>
-						<Button onClick={handleNewProject}>New Project</Button>
-					</Space>
-				</Content>
+					<Content>
+						<DebugLayer label="Select a Graph Project"/>
+						<Title>Select a Graph</Title>
+						{projects.length === 0 && <Paragraph>No Graphs available.</Paragraph>}
+						<Space>
+							{projects.map((proj) => (
+								<Button key={proj.name} onClick={() => handleSelectProject(proj)}>
+									{proj.name}
+								</Button>
+							))}
+						</Space>
+						<Space>
+							<Button onClick={handleNewProject}>New Graph</Button>
+						</Space>
+					</Content>
 
 				</>
 			) : (
@@ -425,10 +425,11 @@ export const Context: React.FC = () => {
 								<Button icon={"Angle"} onClick={handleBackToProjects}>Projects</Button>
 								<Button icon="Bar" size="default" onClick={() => setSidebarOpen(!sidebarOpen)}/>
 								<Paragraph><strong>{currentProject.name.slice(0,33)}</strong></Paragraph>
+
+								<Button type={"primary"} onClick={handleRun}><Paragraph>Run Graph</Paragraph></Button>
+								{/*<Button onClick={handleNewGraphButton}>New Graph</Button>*/}
 								<ButtonGroup>
-									<Button onClick={handleRun}>Run Graph</Button>
-									<Button onClick={handleNewGraphButton}>New Graph</Button>
-									<Button onClick={handleLoadGraph}>Load Graph</Button>
+									<Button onClick={handleLoadGraph}>Import Graph</Button>
 									<Button onClick={handleSaveGraph}>Save Graph</Button>
 								</ButtonGroup>
 							</Space>
@@ -441,20 +442,21 @@ export const Context: React.FC = () => {
 						{/* Sidebar */}
 						<Content pad style={{display: sidebarOpen ? "block" : "none", maxWidth: "320px"}}>
 							<Content>
-								<Paragraph>
-									Project: <strong>{currentProject.name}</strong>
-								</Paragraph>
-								<Paragraph>Graph Tree</Paragraph>
-								<Card pad>
-									<SubGraphTree
-										graphs={subGraphs}
-										onSelect={handleSelectItem}
-									/>
-								</Card>
-								<Space justify="stretch">
-									<Button onClick={handleAddGraph}>Add Subgraph</Button>
-									<Button onClick={handleLoadSubGraph}>Load Subgraph</Button>
-									<Button onClick={handleSaveSubGraph}>Save Subgraph</Button>
+								<Space direction={"vertical"} gap wide>
+									<Paragraph><strong>SubGraphs</strong></Paragraph>
+									<Card pad>
+										<SubGraphTree
+											graphs={subGraphs}
+											onSelect={handleSelectItem}
+										/>
+									</Card>
+									<Space justify="stretch">
+										<ButtonGroup>
+										<Button onClick={handleAddGraph}>Add Subgraph</Button>
+										<Button onClick={handleLoadSubGraph}>Import Subgraph</Button>
+										</ButtonGroup>
+										{/*<Button onClick={handleSaveSubGraph}>Save Subgraph</Button>*/}
+									</Space>
 								</Space>
 							</Content>
 							<Paragraph>{JSON.stringify(subGraphs)}</Paragraph>
@@ -463,6 +465,7 @@ export const Context: React.FC = () => {
 						{/* Main Graph Area */}
 						<Content grow style={{width: "100%", height: "100%"}}>
 							<DebugLayer
+								style={{width: "100%", height: "100%"}}
 								label={
 									<Paragraph className="label">
 										<IconApps size="small"/>
