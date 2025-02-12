@@ -104,9 +104,8 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
                             id={port.id}
                             style={baseHandleStyle}
                         />
-                        <span style={{ marginLeft: 4, fontSize: '10px', color: '#333' }}>
-							{port.label}
-						</span>
+                        <Paragraph style={{ marginLeft: "8px", marginRight: "8px"}}><small>{port.label}</small></Paragraph>
+
                     </div>
                 );
             });
@@ -132,21 +131,18 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
             style={{
                 width,
                 height,
-                position: 'relative',
+                position: 'relative'
             }}
         >
             {/* Render input handles */}
             {renderHandles(nodeDef.inputs, 'target')}
             {/* Render output handles */}
             {renderHandles(nodeDef.outputs, 'source')}
-            <Page >
+            <Page  style={{padding:"0 32px", height:"100%"}}>
                 <Content>
-                    test
                     {nodeTypeSwitch()}
                 </Content>
-                <Content grow>
-                    {nodeDef.render({ data: localData, onChange: handleChange })}
-                </Content>
+                {nodeDef.render({ data: localData, onChange: handleChange })}
             </Page>
             <NodeResizeControl minWidth={200} minHeight={200}>
                 <IconTriangle />
