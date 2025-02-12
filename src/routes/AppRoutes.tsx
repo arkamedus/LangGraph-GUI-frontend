@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import GraphApp from '../Graph/GraphApp';
 import MenuLayout from '../GraphMenu/MenuLayout';
 import DocPage from '../Doc/DocPage';
+import {Context} from "../components/Context.tsx";
 
 // Example Components
 const HomePage = () => <h1>Home Page</h1>;
@@ -18,6 +19,7 @@ const AppRoutes: React.FC = () => {
                 {/* Apply MenuLayout ONLY on the root (/) */}
                 <Route path="/" element={<MenuLayout />}>
                     <Route index element={<GraphApp />} />
+                    <Route path="new" element={<Context />} />
                 </Route>
 
                 {/* Other paths, without MenuLayout */}

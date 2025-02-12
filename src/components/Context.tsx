@@ -58,6 +58,7 @@ export const Context: React.FC = () => {
 	const reactFlowProps = useMemo<ReactFlowProps>(() => ({
 		onContextMenu: (event: React.MouseEvent)=> {
 			console.log('ON CONTEXT');
+			console.log(event);
 			return handlePanelContextMenu(event, setContextMenu)},
 		onClick: handleCloseContextMenu,
 		onNodesChange: (changes: NodeChange[]) => handleNodesChange(currentGraphName, changes),
@@ -101,10 +102,12 @@ export const Context: React.FC = () => {
 	return (<Page fixed gap>
 		<Content>
 			<DebugLayer label="LangGraph-GUI" >
-				<Space><Button icon="Bar" size={"default"} onClick={()=>{
+				<Space>
+					<Button icon="Bar" size={"default"} onClick={()=>{
 					setSidebarOpen(!sidebarOpen);
 				}}/>
-					<GraphPanel />
+				
+
 				</Space>
 			</DebugLayer>
 		</Content>
@@ -129,7 +132,47 @@ export const Context: React.FC = () => {
 					<MiniMap />
 					<Background />
 					<Controls />
-				</ReactFlow></DebugLayer>
+				</ReactFlow>
+
+					{contextMenu && contextMenu.type === 'panel' && (
+						<div
+							className="fixed bg-white border border-gray-300 z-1000 p-2"
+							style={{
+								top: contextMenu.mouseY,
+								left: contextMenu.mouseX,
+							}}
+						>
+							<button onClick={()=> handleAddNode({contextMenu, setContextMenu, screenToFlowPosition})} className="block bg-green-500 hover:bg-green-700 text-white font-bold px-2 rounded">Add Node</button>
+							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
+						</div>
+					)}
+					{contextMenu && contextMenu.type === 'node' &&(
+						<div
+							className="fixed bg-white border border-gray-300 z-1000 p-2"
+							style={{
+								top: contextMenu.mouseY,
+								left: contextMenu.mouseX,
+							}}
+						>
+							{/* <button onClick={handleAddEdge} className="block bg-blue-500 hover:bg-blue-700 text-white font-bold px-2 rounded">Add Edge</button> */}
+							<button onClick={()=> handleDeleteNode(contextMenu, setContextMenu)} className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded">Delete Node</button>
+							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
+						</div>
+					)}
+					{contextMenu && contextMenu.type === 'edge' &&(
+						<div
+							className="fixed bg-white border border-gray-300 z-1000 p-2"
+							style={{
+								top: contextMenu.mouseY,
+								left: contextMenu.mouseX,
+							}}
+						>
+							<button onClick={()=> handleDeleteEdge(contextMenu, setContextMenu)} className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded">Delete Edge</button>
+							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
+						</div>
+					)}
+
+				</DebugLayer>
 			</Content>
 		</ContentRow>
 		<Content>
