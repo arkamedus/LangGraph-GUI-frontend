@@ -18,8 +18,8 @@ const AppRoutes: React.FC = () => {
             <Routes>
                 {/* Apply MenuLayout ONLY on the root (/) */}
                 <Route path="/" element={<MenuLayout />}>
-                    <Route index element={<GraphApp />} />
-                    <Route path="new" element={<Context />} />
+                    <Route path="old" element={<GraphApp />} />
+                    <Route index element={<Context />} />
                 </Route>
 
                 {/* Other paths, without MenuLayout */}

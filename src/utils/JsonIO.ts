@@ -19,7 +19,7 @@ export const saveJsonToFile = (filename: string, JsonData: any): void => {
     }
 };
 
-export const loadJsonFromFile = (): Promise<any> => {
+export const loadJsonFromFile = (): Promise<{ data: any; fileName: string }> => {
     return new Promise((resolve, reject) => {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
@@ -40,11 +40,10 @@ export const loadJsonFromFile = (): Promise<any> => {
                         const contents = e.target?.result;
                         if (typeof contents === 'string') {
                             const parsedData = JSON.parse(contents);
-                            resolve(parsedData);
+                            resolve({ data: parsedData, fileName: file.name });
                         } else {
                             reject(new Error('File contents are not a string.'));
                         }
-
                     } catch (error) {
                         reject(new Error('Error parsing JSON.' + error));
                     }

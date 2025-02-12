@@ -1,5 +1,7 @@
 # reactflow-ts
 
+![preview](./asset/preview.png)
+
 ## Dev 
 * compile
   * ```npm run tsc```

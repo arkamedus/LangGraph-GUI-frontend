@@ -40,8 +40,6 @@ import {
 	jsonToSubGraphs,
 	subGraphToJson
 } from "../Graph/JsonUtil";
-
-import {StepEdge} from "@xyflow/react";
 import RunWindow from "../GraphMenu/RunWindow";
 import ConfigWindow from "../GraphMenu/ConfigWindow";
 import CustomEdge from "../Graph/CustomEdge.tsx";
@@ -273,14 +271,11 @@ export const Context: React.FC = () => {
 		console.log("New Graph clicked");
 	};
 
-	/**
-	 * Load multiple subgraphs from one JSON, store them in GraphContext + currentProject
-	 */
 	const handleLoadGraph = async () => {
 		try {
-			const jsonData = await loadJsonFromFile();
-			if (!jsonData) return;
-
+			const result = await loadJsonFromFile();
+			if (!result) return;
+			const {data: jsonData, fileName} = result;
 			const loadedSubGraphs: SubGraph[] = jsonToSubGraphs(jsonData);
 
 			// Clear all subgraphs from context
@@ -292,18 +287,22 @@ export const Context: React.FC = () => {
 				updateSubGraph(sg.graphName, sg);
 			});
 
-			// If a project is open, store them there
-			if (currentProject) {
-				setCurrentProject({
-					...currentProject,
-					graphs: loadedSubGraphs
-				});
+			// Create a new project with the file name (remove .json extension if present)
+			const projectName = fileName.replace(/\.json$/i, "");
+			const newProject: Project = {name: projectName, graphs: loadedSubGraphs};
+
+			// Add the new project to the list and set it as current
+			setProjects((prev) => [...prev, newProject]);
+			setCurrentProject(newProject);
+			if (loadedSubGraphs.length > 0) {
+				setCurrentGraphName(loadedSubGraphs[0].graphName);
 			}
 		} catch (error) {
 			console.error("Error loading graph:", error);
 			alert("Failed to load graph: " + error);
 		}
 	};
+
 
 	// Save all subgraphs in context to a single JSON
 	const handleSaveGraph = () => {
@@ -399,19 +398,23 @@ export const Context: React.FC = () => {
 			{!currentProject ? (
 				<>
 					<Content><DebugLayer label={"LangGraph-GUI"}/></Content>
-					<Content>
-						<DebugLayer label="Select a Graph Project"/>
-						<Title>Select a Graph</Title>
-						{projects.length === 0 && <Paragraph>No Graphs available.</Paragraph>}
-						<Space>
-							{projects.map((proj) => (
-								<Button key={proj.name} onClick={() => handleSelectProject(proj)}>
-									{proj.name}
-								</Button>
-							))}
-						</Space>
-						<Space>
-							<Button onClick={handleNewProject}>New Graph</Button>
+					<Content grow>
+						<Space align={"center"} justify={"center"} style={{height: "100%"}} gap>
+							<Space direction={"vertical"} gap>
+								<Title>Select a Graph</Title>
+								{projects.length === 0 && <Paragraph>No Graphs available.</Paragraph>}
+								<Space gap>
+									{projects.map((proj) => (
+										<Button key={proj.name} onClick={() => handleSelectProject(proj)}>
+											{proj.name}
+										</Button>
+									))}
+								</Space>
+								<Space>
+									<ButtonGroup> <Button onClick={handleNewProject}>New Graph</Button>
+										<Button onClick={handleLoadGraph}>Import Graph</Button></ButtonGroup>
+								</Space>
+							</Space>
 						</Space>
 					</Content>
 
@@ -419,20 +422,19 @@ export const Context: React.FC = () => {
 			) : (
 				// Otherwise, show the graph editor for the currentProject
 				<>
-					<Content><DebugLayer label={"LangGraph-GUI"} extra={<Paragraph>Project: <strong>{currentProject.name}</strong></Paragraph>}/></Content>
+					<Content><DebugLayer label={"LangGraph-GUI"}/></Content>
 					<Content>
 						<Space justify="between" wide>
 
 							<Space gap align={"center"}>
-								<Button icon={"Angle"} onClick={handleBackToProjects}>Projects</Button>
+								<Button icon={"Angle"} onClick={handleBackToProjects}>All Graphs</Button>
 								<Button icon="Bar" size="default" onClick={() => setSidebarOpen(!sidebarOpen)}/>
-								<Paragraph><strong>{currentProject.name.slice(0,33)}</strong></Paragraph>
+								<Paragraph><strong>{currentProject.name.slice(0, 33)}</strong></Paragraph>
 
 								<Button type={"primary"} onClick={handleRun}><Paragraph>Run Graph</Paragraph></Button>
 								{/*<Button onClick={handleNewGraphButton}>New Graph</Button>*/}
 								<ButtonGroup>
-									<Button onClick={handleLoadGraph}>Import Graph</Button>
-									<Button onClick={handleSaveGraph}>Save Graph</Button>
+									<Button onClick={handleSaveGraph}>Export Graph</Button>
 								</ButtonGroup>
 							</Space>
 							<Button onClick={() => setIsConfigWindowOpen(true)}>Settings</Button>
@@ -442,26 +444,31 @@ export const Context: React.FC = () => {
 
 					<ContentRow>
 						{/* Sidebar */}
-						<Content pad style={{display: sidebarOpen ? "block" : "none", maxWidth: "320px"}}>
-							<Content>
-								<Space direction={"vertical"} gap wide>
-									<Paragraph><strong>SubGraphs</strong></Paragraph>
-									<Card pad>
-										<SubGraphTree
-											graphs={subGraphs}
-											onSelect={handleSelectItem}
-										/>
-									</Card>
-									<Space justify="stretch">
-										<ButtonGroup>
-										<Button onClick={handleAddGraph}>Add Subgraph</Button>
-										<Button onClick={handleLoadSubGraph}>Import Subgraph</Button>
-										</ButtonGroup>
-										{/*<Button onClick={handleSaveSubGraph}>Save Subgraph</Button>*/}
+						<Content style={{display: sidebarOpen ? "block" : "none",width:"100%", maxWidth: "320px", paddingLeft:0}} pad={"horizontal"}>
+							<Page gap style={{height:"100%"}}>
+								<Content grow>
+									<Space direction={"vertical"} gap style={{width:"100%", height:"100%"}}>
+
+										<Card pad style={{width:"100%", height:"100%"}}>
+											<SubGraphTree
+												graphs={subGraphs}
+												onSelect={handleSelectItem}
+											/>
+										</Card>
+
 									</Space>
-								</Space>
-							</Content>
-							<Paragraph>{JSON.stringify(subGraphs)}</Paragraph>
+								</Content>
+								<Content><Space justify="stretch">
+									<ButtonGroup>
+										<Button icon={"Plus"} size="small" onClick={handleAddGraph}>Add SubGraph</Button>
+										<Button size="small" onClick={handleLoadSubGraph}>Import SubGraph</Button>
+									</ButtonGroup>
+									{/*<Button onClick={handleSaveSubGraph}>Save Subgraph</Button>*/}
+								</Space></Content>
+								<Content>
+									<Card pad style={{background:"#eee"}}><textarea style={{display:"block",fontSize:"6pt", width:"100%", fontFamily:"monospace", background:"none"}} rows={2}>{JSON.stringify(subGraphs)}</textarea></Card>
+								</Content>
+							</Page>
 						</Content>
 
 						{/* Main Graph Area */}
@@ -471,7 +478,7 @@ export const Context: React.FC = () => {
 								label={
 									<Paragraph className="label">
 										<IconApps size="small"/>
-										Graph (<strong>{currentGraphName}</strong>)
+										SubGraph (<strong>{currentGraphName}</strong>)
 									</Paragraph>
 								}
 							>
