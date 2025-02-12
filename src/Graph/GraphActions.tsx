@@ -35,19 +35,27 @@ export const useGraphActions = () => {
                 height: 200,
                 data: {
                     type: "STEP",
-                    name: `Node ${currentGraph().serial_number}`  // Set the default name here
-                },
+                    name: `Node ${currentGraph().serial_number}`,
+                    description: "",
+                    tool: "",
+                    nexts: [],  // ✅ Ensure this is initialized as an empty array
+                    prevs: [],  // ✅ Ensure this is initialized as an empty array
+                    true_next: null,
+                    false_next: null,
+                    info: null
+                }
             };
-            const updatedNodes = [...currentGraph().nodes, newNode]
+
             updateSubGraph(currentGraphName, {
                 ...currentGraph(),
-                nodes: updatedNodes,
+                nodes: [...currentGraph().nodes, newNode],
                 serial_number: currentGraph().serial_number + 1,
-            }
-            );
+            });
+
             setContextMenu(null);
         }
     }, [currentGraph, updateSubGraph, currentGraphName]);
+
 
 
     const handleDeleteNode = useCallback((contextMenu: ContextMenuProps | null, setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuProps | null>>) => {
@@ -133,10 +141,10 @@ export const useGraphActions = () => {
     }, [currentGraph, currentGraphName, updateSubGraph])
 
     const handleAddEdge = useCallback((connection: Connection) => {
-       
+
         const sourceNode = currentGraph().nodes.find(node => node.id === connection.source);
         const targetNode = currentGraph().nodes.find(node => node.id === connection.target);
-      
+
         if (!sourceNode || !targetNode) return;
 
         // Check for existing connections on true/false handles
@@ -161,7 +169,7 @@ export const useGraphActions = () => {
                 targetNode: connection.target
             }
         }
-       
+
         const updatedNodes = currentGraph().nodes.map(node =>{
             const updatedNode = { ...node }
             if (updatedNode.id === connection.source){
@@ -174,7 +182,7 @@ export const useGraphActions = () => {
                     if(!updatedNode.data.nexts) {
                         updatedNode.data.nexts = []
                     }
-                    
+
                     if (! (updatedNode.data.nexts as string[]).includes(connection.target)){
                         (updatedNode.data.nexts as string[]).push(connection.target);
                     }

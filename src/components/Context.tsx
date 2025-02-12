@@ -41,9 +41,11 @@ import {
 	subGraphToJson
 } from "../Graph/JsonUtil";
 import CustomNode from "./nodes/CustomNode";
+
 import {StepEdge} from "@xyflow/react";
 import RunWindow from "../GraphMenu/RunWindow";
 import ConfigWindow from "../GraphMenu/ConfigWindow";
+import CustomEdge from "../Graph/CustomEdge.tsx";
 
 interface Project {
 	name: string;
@@ -321,7 +323,7 @@ export const Context: React.FC = () => {
 			onEdgeClick: handleEdgeClick,
 			onConnect: handleAddEdge,
 			edgeTypes: {
-				custom: StepEdge
+				custom: CustomEdge,//StepEdge
 			}
 		}),
 		[
