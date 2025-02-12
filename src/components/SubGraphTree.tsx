@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { SubGraph } from "../Graph/GraphContext";
 import { Node as XYNode } from "@xyflow/react";
 
-// Extend the XYNode type so that our GraphNode has all required fields.
+// Extend XYNode so our GraphNode has required fields.
 export interface GraphNode extends XYNode {
 	type: string;
 	data: {
@@ -20,13 +20,15 @@ export interface GraphNode extends XYNode {
 	};
 }
 
-// Our tree component expects an array of SubGraphs.
+// Updated onSelect now accepts an ancestry array so that the payload includes
+// which subtree the selected item belongs to.
 export interface SubGraphTreeProps {
 	graphs: SubGraph[];
-	onSelect?: (item: SubGraph | GraphNode) => void;
+	onSelect?: (item: SubGraph | GraphNode, ancestry: SubGraph[]) => void;
+	onDelete?: (item: SubGraph | GraphNode) => void;
 }
 
-// Helper: Check for missing connections and other status info.
+// Helper: determine if a graph is missing connections.
 const getGraphStatus = (graph: SubGraph) => {
 	let missingConnections = false;
 	(graph.nodes as GraphNode[]).forEach((node) => {
@@ -42,10 +44,13 @@ const getGraphStatus = (graph: SubGraph) => {
 
 interface GraphTreeNodeProps {
 	graph: SubGraph;
-	onSelect: (item: SubGraph | GraphNode) => void;
+	ancestry: SubGraph[]; // ancestry: parent subgraphs leading to this one
+	onSelect: (item: SubGraph | GraphNode, ancestry: SubGraph[]) => void;
+	onDelete: ((item: SubGraph | GraphNode) => void) | undefined;
+	topGraphNames: Set<string>;
 }
 
-const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, onSelect }) => {
+const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, ancestry, onSelect, onDelete, topGraphNames }) => {
 	const [expanded, setExpanded] = useState(true);
 	const { missingConnections } = getGraphStatus(graph);
 
@@ -58,7 +63,10 @@ const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, onSelect }) => {
 		<li>
 			<div
 				className="tree-node graph-node"
-				onClick={() => onSelect(graph)}
+				onClick={(e) => {
+					e.stopPropagation();
+					onSelect(graph, ancestry);
+				}}
 				style={{ fontWeight: "bold", cursor: "pointer" }}
 			>
         <span onClick={toggleExpanded} style={{ marginRight: 4 }}>
@@ -66,11 +74,30 @@ const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, onSelect }) => {
         </span>
 				{graph.graphName} (Nodes: {graph.nodes.length})
 				{missingConnections && <span style={{ color: "red" }}> ⚠ Missing Connections</span>}
+				{onDelete && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onDelete(graph);
+						}}
+						style={{ marginLeft: 8 }}
+					>
+						Delete
+					</button>
+				)}
 			</div>
-			{expanded && graph.nodes.length > 0 && (
+			{expanded && graph.nodes && graph.nodes.length > 0 && (
 				<ul style={{ listStyle: "none", paddingLeft: "1em" }}>
 					{(graph.nodes as GraphNode[]).map((node) => (
-						<GraphNodeTreeNode key={node.id} node={node} onSelect={onSelect} />
+						<GraphNodeTreeNode
+							key={node.id}
+							node={node}
+							// For nodes inside this subgraph, extend ancestry with the current graph.
+							ancestry={[...ancestry, graph]}
+							onSelect={onSelect}
+							onDelete={onDelete}
+							topGraphNames={topGraphNames}
+						/>
 					))}
 				</ul>
 			)}
@@ -80,46 +107,80 @@ const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, onSelect }) => {
 
 interface GraphNodeTreeNodeProps {
 	node: GraphNode;
-	onSelect: (item: SubGraph | GraphNode) => void;
+	ancestry: SubGraph[];
+	onSelect: (item: SubGraph | GraphNode, ancestry: SubGraph[]) => void;
+	onDelete: ((item: SubGraph | GraphNode) => void) | undefined;
+	topGraphNames: Set<string>;
 }
 
-const GraphNodeTreeNode: React.FC<GraphNodeTreeNodeProps> = ({ node, onSelect }) => {
-	const [expanded, setExpanded] = useState(true);
+const GraphNodeTreeNode: React.FC<GraphNodeTreeNodeProps> = ({ node, ancestry, onSelect, onDelete, topGraphNames }) => {
+	const [expanded, setExpanded] = useState(false);
 	const toggleExpanded = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		setExpanded((prev) => !prev);
 	};
-	const isSubgraph = node.data.type === "SUBGRAPH";
+	const isSubgraph = node.data.type === "SUBGRAPH" && !!node.data.subgraph;
+	// Avoid nesting if the subgraph is already rendered at the top level.
+	const shouldRenderNested = isSubgraph && !topGraphNames.has(node.data.subgraph!.graphName);
 
 	return (
 		<li>
-			<div className="tree-node" onClick={() => onSelect(node)} style={{ cursor: "pointer" }}>
-				{isSubgraph ? (
-					<>
-            <span onClick={toggleExpanded} style={{ marginRight: 4 }}>
-              {expanded ? "▼" : "▶"}
-            </span>
-						{node.data.name} (Subgraph)
-					</>
-				) : (
-					node.data.name
+			<div
+				className="tree-node node"
+				onClick={(e) => {
+					e.stopPropagation();
+					onSelect(node, ancestry);
+				}}
+				style={{ cursor: "pointer" }}
+			>
+				{isSubgraph && (
+					<span onClick={toggleExpanded} style={{ marginRight: 4 }}>
+            {expanded ? "▼" : "▶"}
+          </span>
+				)}
+				{node.data.name} ({node.data.type})
+				{onDelete && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onDelete(node);
+						}}
+						style={{ marginLeft: 8 }}
+					>
+						Delete
+					</button>
 				)}
 			</div>
-			{isSubgraph && node.data.subgraph && expanded && (
+			{shouldRenderNested && expanded && (
 				<ul style={{ listStyle: "none", paddingLeft: "1em" }}>
-					<GraphTreeNode graph={node.data.subgraph} onSelect={onSelect} />
+					<GraphTreeNode
+						graph={node.data.subgraph!}
+						ancestry={[...ancestry, node.data.subgraph!]}
+						onSelect={onSelect}
+						onDelete={onDelete}
+						topGraphNames={topGraphNames}
+					/>
 				</ul>
 			)}
 		</li>
 	);
 };
 
-const SubGraphTree: React.FC<SubGraphTreeProps> = ({ graphs, onSelect = () => {} }) => {
+const SubGraphTree: React.FC<SubGraphTreeProps> = ({ graphs, onSelect = () => {}, onDelete }) => {
+	const topGraphNames = new Set(graphs.map((g) => g.graphName));
+
 	return (
 		<div className="subgraph-tree">
 			<ul style={{ listStyle: "none", paddingLeft: "1em" }}>
 				{graphs.map((graph) => (
-					<GraphTreeNode key={graph.graphName} graph={graph} onSelect={onSelect} />
+					<GraphTreeNode
+						key={graph.graphName}
+						graph={graph}
+						ancestry={[]}
+						onSelect={onSelect}
+						onDelete={onDelete}
+						topGraphNames={topGraphNames}
+					/>
 				))}
 			</ul>
 		</div>

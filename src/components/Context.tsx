@@ -1,6 +1,22 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import RunWindow from "../GraphMenu/RunWindow.tsx";
-import {Button, Card, Content, ContentRow, DebugLayer, Page, Paragraph, Space, Title} from "oakd";
+import React, {
+	useCallback,
+	useMemo,
+	useRef,
+	useState
+} from "react";
+import {
+	Button,
+	ButtonGroup,
+	Card,
+	Content,
+	ContentRow,
+	DebugLayer,
+	IconApps,
+	Page,
+	Paragraph,
+	Space,
+	Title
+} from "oakd";
 import {
 	Background,
 	Controls,
@@ -11,264 +27,545 @@ import {
 	ReactFlowProps,
 	useReactFlow
 } from "@xyflow/react";
-import {SubGraph, useGraph} from "../Graph/GraphContext.tsx";
-import {useGraphActions} from "../Graph/GraphActions.tsx";
+import {SubGraph, useGraph} from "../Graph/GraphContext";
+import {useGraphActions} from "../Graph/GraphActions";
 import {Edge as ReactFlowEdge} from "@xyflow/react/dist/esm/types/edges";
-import CustomEdge from "../Graph/CustomEdge.tsx";
-import CustomNode from "../Graph/CustomNode.tsx";
 import 'oakd/build/index.css';
-import SubGraphTree from "./SubGraphTree.tsx";
-import {loadJsonFromFile, saveJsonToFile} from "../utils/JsonIO.ts";
-import {allSubGraphsToJson, JsonSubGraph, jsonToSubGraph, jsonToSubGraphs, subGraphToJson} from "../Graph/JsonUtil.tsx";
+import SubGraphTree from "./SubGraphTree";
+import {loadJsonFromFile, saveJsonToFile} from "../utils/JsonIO";
+import {
+	allSubGraphsToJson,
+	JsonSubGraph,
+	jsonToSubGraph,
+	jsonToSubGraphs,
+	subGraphToJson
+} from "../Graph/JsonUtil";
+import CustomNode from "./nodes/CustomNode";
+import {StepEdge} from "@xyflow/react";
+import RunWindow from "../GraphMenu/RunWindow";
+import ConfigWindow from "../GraphMenu/ConfigWindow";
 
+interface Project {
+	name: string;
+	graphs: SubGraph[]; // each project has its own subgraphs
+}
 
 export const Context: React.FC = () => {
+	// Projects and which project is currently open
+	const [projects, setProjects] = useState<Project[]>([]);
+	const [currentProject, setCurrentProject] = useState<Project | null>(null);
 
-
+	// Additional UI states
 	const [isRunWindowOpen, setIsRunWindowOpen] = useState(false);
+	const [isConfigWindowOpen, setIsConfigWindowOpen] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-
-	const {subGraphs, currentGraphName, addSubGraph, updateNodeData, handleNodesChange, handleEdgesChange, getCurrentGraph, removeSubGraph, updateSubGraph} = useGraph();
-	const [contextMenu, setContextMenu] = useState<{mouseX: number, mouseY: number, nodeId: string | null, edgeId:string | null, type: 'panel' | 'node' | 'edge'} | null>(null);
+	const [contextMenu, setContextMenu] = useState<{
+		mouseX: number;
+		mouseY: number;
+		nodeId: string | null;
+		edgeId: string | null;
+		type: "panel" | "node" | "edge";
+	} | null>(null);
 	const [canvasHeight, setCanvasHeight] = useState<number>(window.innerHeight);
-	const menuBarRef = useRef<HTMLDivElement>(null);  //ref for menu bar
-	const { screenToFlowPosition } = useReactFlow();
 
-	const { handleAddNode, handleDeleteNode, handleDeleteEdge, handlePanelContextMenu, handleAddEdge } = useGraphActions();
+	// GraphContext references
+	const {
+		subGraphs,
+		currentGraphName,
+		addSubGraph,
+		updateNodeData,
+		handleNodesChange,
+		handleEdgesChange,
+		getCurrentGraph,
+		removeSubGraph,
+		updateSubGraph,
+		setCurrentGraphName
+	} = useGraph();
+	const {
+		handleAddNode,
+		handleDeleteNode,
+		handleDeleteEdge,
+		handlePanelContextMenu,
+		handleAddEdge
+	} = useGraphActions();
 
+	const menuBarRef = useRef<HTMLDivElement>(null);
+	const {screenToFlowPosition, setCenter} = useReactFlow();
 
-	// Always get the current graph, use initial graph data when current graph is not loaded
-	const currentGraph = useMemo(()=> getCurrentGraph(), [getCurrentGraph]);
+	// Current subgraph from GraphContext
+	const graphInContext = useMemo(() => getCurrentGraph(), [getCurrentGraph]);
+
+	// ---------------------------------------------------------------------------
+	// PROJECT SELECTION
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * 1) Save the old project’s subgraphs (if one was open).
+	 * 2) Remove all subgraphs from GraphContext (so we start fresh).
+	 * 3) Load new project’s subgraphs into GraphContext.
+	 * 4) Mark currentProject = new project.
+	 * 5) Optionally set currentGraphName if the project has subgraphs.
+	 */
+	const handleSelectProject = useCallback(
+		(newProject: Project) => {
+			// 1) If we had a currentProject, store the GraphContext subgraphs back into it
+			if (currentProject) {
+				const updatedOldProj: Project = {
+					...currentProject,
+					graphs: subGraphs
+				};
+				setProjects((prev) => {
+					const copy = [...prev];
+					const idx = copy.findIndex((p) => p.name === updatedOldProj.name);
+					if (idx !== -1) {
+						copy[idx] = updatedOldProj;
+					}
+					return copy;
+				});
+			}
+
+			// 2) Remove all subgraphs from GraphContext
+			subGraphs.forEach((sg) => {
+				removeSubGraph(sg.graphName);
+			});
+
+			// 3) Load the new project's subgraphs into GraphContext
+			newProject.graphs.forEach((g) => {
+				updateSubGraph(g.graphName, g);
+			});
+
+			// 4) Make newProject current
+			setCurrentProject(newProject);
+
+			// 5) If newProject has subgraphs, show the first as current
+			if (newProject.graphs.length > 0) {
+				setCurrentGraphName(newProject.graphs[0].graphName);
+			}
+		},
+		[
+			currentProject,
+			removeSubGraph,
+			setCurrentProject,
+			setProjects,
+			setCurrentGraphName,
+			subGraphs,
+			updateSubGraph
+		]
+	);
+
+	/**
+	 * 1) Save the current GraphContext’s subGraphs into currentProject.
+	 * 2) Clear currentProject to show project selection.
+	 */
+	const handleBackToProjects = useCallback(() => {
+		if (!currentProject) {
+			setCurrentProject(null);
+			return;
+		}
+		// 1) Save context’s subgraphs into the currentProject
+		const updatedProject: Project = {
+			...currentProject,
+			graphs: subGraphs
+		};
+		// Update it in the project list
+		setProjects((prev) => {
+			const copy = [...prev];
+			const idx = copy.findIndex((p) => p.name === updatedProject.name);
+			if (idx !== -1) {
+				copy[idx] = updatedProject;
+			}
+			return copy;
+		});
+		// 2) Deselect
+		setCurrentProject(null);
+	}, [currentProject, subGraphs, setProjects]);
+
+	/** Creates a fresh new project with no subgraphs. */
+	const handleNewProject = () => {
+		const name = prompt("Enter a new project name:");
+		if (!name) return;
+
+		const newProject: Project = {name, graphs: []};
+		setProjects((prev) => [...prev, newProject]);
+
+		// Immediately switch to that project
+		handleSelectProject(newProject);
+	};
+
+	// ---------------------------------------------------------------------------
+	// GRAPH FLOW / SUBGRAPH I/O
+	// ---------------------------------------------------------------------------
 
 	const handleCloseContextMenu = useCallback(() => {
 		setContextMenu(null);
 	}, []);
 
-
-	const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
-		updateNodeData(currentGraphName, nodeId, newData)
-	}, [updateNodeData, currentGraphName]);
+	const handleNodeDataChange = useCallback(
+		(nodeId: string, newData: any) => {
+			updateNodeData(currentGraphName, nodeId, newData);
+		},
+		[updateNodeData, currentGraphName]
+	);
 
 	const handleEdgeClick = useCallback((event: React.MouseEvent, edge: ReactFlowEdge) => {
 		event.preventDefault();
 		event.stopPropagation();
-		console.log("handleEdgeClick", edge)
+		console.log("handleEdgeClick", edge);
 	}, []);
 
-
+	/**
+	 * Create a brand new subgraph in GraphContext,
+	 * also store it in the currentProject if defined
+	 */
 	const handleAddGraph = () => {
 		const newGraphName = prompt("Enter a new graph name:");
-		if (newGraphName) {
-			addSubGraph(newGraphName);
+		if (!newGraphName) return;
+
+		addSubGraph(newGraphName);
+		const newGraph = getCurrentGraph();
+
+		// If a project is open, store it there
+		if (currentProject) {
+			setCurrentProject({
+				...currentProject,
+				graphs: [...currentProject.graphs, newGraph]
+			});
 		}
 	};
 
+	/**
+	 * Load a single subgraph from a JSON file
+	 * and put it into GraphContext + currentProject
+	 */
 	const handleLoadSubGraph = async () => {
 		try {
 			const jsonData = await loadJsonFromFile();
+			if (!jsonData) return;
 
-			if (jsonData) {
+			if (!jsonData.name || !jsonData.nodes || !jsonData.serial_number) {
+				throw new Error("Invalid Json Format: must be JsonSubGraph");
+			}
+			const loadedSubGraph: SubGraph = jsonToSubGraph(jsonData as JsonSubGraph);
 
-				// Make sure jsonData is JsonSubGraph
-				if(!jsonData.name || !jsonData.nodes || !jsonData.serial_number){
-					throw new Error("Invalid Json Format: must be JsonSubGraph")
-				}
+			updateSubGraph(loadedSubGraph.graphName, loadedSubGraph);
 
-				const loadedSubGraph: SubGraph = jsonToSubGraph(jsonData as JsonSubGraph);
-
-				updateSubGraph(loadedSubGraph.graphName, loadedSubGraph);
-
-				alert('Subgraph loaded successfully!');
+			if (currentProject) {
+				setCurrentProject({
+					...currentProject,
+					graphs: [...currentProject.graphs, loadedSubGraph]
+				});
 			}
 		} catch (error) {
 			console.error("Error loading subgraph:", error);
-			alert('Failed to load subgraph: ' + error);
+			alert("Failed to load subgraph: " + error);
 		}
 	};
+
 	const handleSaveSubGraph = () => {
-		const currentGraph = getCurrentGraph();
-		const jsonData = subGraphToJson(currentGraph);
-		saveJsonToFile(`${currentGraph.graphName}.json`, jsonData);
+		const curGraph = getCurrentGraph();
+		const jsonData = subGraphToJson(curGraph);
+		saveJsonToFile(`${curGraph.graphName}.json`, jsonData);
 	};
 
-
-
-	const reactFlowProps = useMemo<ReactFlowProps>(() => ({
-		onContextMenu: (event: React.MouseEvent)=> {
-			console.log('ON CONTEXT');
-			console.log(event);
-			return handlePanelContextMenu(event, setContextMenu)},
-		onClick: handleCloseContextMenu,
-		onNodesChange: (changes: NodeChange[]) => handleNodesChange(currentGraphName, changes),
-		onEdgesChange: (changes: EdgeChange[]) => handleEdgesChange(currentGraphName, changes),
-		onEdgeClick: handleEdgeClick,
-		onConnect: handleAddEdge,
-		edgeTypes: {
-			custom: (props) => {
-				const {sourceNode, targetNode} = props.data || {}
-				return <CustomEdge {...props} sourceNode={sourceNode} targetNode={targetNode} />
-			},
-		},
-	}),[handlePanelContextMenu,handleCloseContextMenu, handleNodesChange, handleEdgesChange, handleEdgeClick, handleAddEdge, currentGraphName, setContextMenu])
-
-	useEffect(() => {
-		const handleResize = () => {
-			if (menuBarRef.current) {
-				const menuBarHeight = menuBarRef.current.offsetHeight;
-				setCanvasHeight(window.innerHeight - menuBarHeight - 10);
-			} else {
-				setCanvasHeight(window.innerHeight-10);
-			}
-		};
-
-		window.addEventListener('resize', handleResize);
-		handleResize();
-
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
-
-	const nodeTypes = useMemo(() => ({
-		custom: (props: any) => <CustomNode {...props} onNodeDataChange={handleNodeDataChange}  />,
-	}), [handleNodeDataChange]);
-
-
-	const handleRun=()=>{
-		console.log('running');
-		setIsRunWindowOpen(true);
-	}
-
-	const handleNewGraph = () => {
+	const handleNewGraphButton = () => {
 		console.log("New Graph clicked");
 	};
 
+	/**
+	 * Load multiple subgraphs from one JSON, store them in GraphContext + currentProject
+	 */
 	const handleLoadGraph = async () => {
 		try {
 			const jsonData = await loadJsonFromFile();
-			if(jsonData){
-				const loadedSubGraphs: SubGraph[] = jsonToSubGraphs(jsonData);
+			if (!jsonData) return;
 
-				//Clear subgraphs first
-				subGraphs.forEach(graph => {
-					if(graph.graphName !== 'root') removeSubGraph(graph.graphName)
-				})
-				//Then load new subgraphs
-				loadedSubGraphs.forEach(subGraph => updateSubGraph(subGraph.graphName,subGraph))
+			const loadedSubGraphs: SubGraph[] = jsonToSubGraphs(jsonData);
 
-				alert('Graph loaded successfully!');
+			// Clear all subgraphs from context
+			subGraphs.forEach((sg) => {
+				removeSubGraph(sg.graphName);
+			});
+			// Load these into context
+			loadedSubGraphs.forEach((sg) => {
+				updateSubGraph(sg.graphName, sg);
+			});
+
+			// If a project is open, store them there
+			if (currentProject) {
+				setCurrentProject({
+					...currentProject,
+					graphs: loadedSubGraphs
+				});
 			}
-
 		} catch (error) {
 			console.error("Error loading graph:", error);
-			alert('Failed to load graph: ' + error);
+			alert("Failed to load graph: " + error);
 		}
 	};
 
+	// Save all subgraphs in context to a single JSON
 	const handleSaveGraph = () => {
 		const jsonData = allSubGraphsToJson(subGraphs);
 		saveJsonToFile("Save.json", jsonData);
 	};
 
-	return (<Page fixed gap>
-		<Content>
-			<DebugLayer label="LangGraph-GUI" >
-				<Space>
-					<Button icon="Bar" size={"default"} onClick={()=>{
-					setSidebarOpen(!sidebarOpen);
-				}}/>
+	// React Flow event handlers
+	const reactFlowProps = useMemo<ReactFlowProps>(
+		() => ({
+			onContextMenu: (event: React.MouseEvent) => {
+				return handlePanelContextMenu(event, setContextMenu);
+			},
+			onClick: () => setContextMenu(null),
+			onNodesChange: (changes: NodeChange[]) => handleNodesChange(currentGraphName, changes),
+			onEdgesChange: (changes: EdgeChange[]) => handleEdgesChange(currentGraphName, changes),
+			onEdgeClick: handleEdgeClick,
+			onConnect: handleAddEdge,
+			edgeTypes: {
+				custom: StepEdge
+			}
+		}),
+		[
+			handlePanelContextMenu,
+			handleNodesChange,
+			handleEdgesChange,
+			handleEdgeClick,
+			handleAddEdge,
+			currentGraphName
+		]
+	);
 
-					<Button  onClick={handleNewGraph}>New Graph</Button>
-					<Button  onClick={handleLoadGraph}>Load Graph</Button>
-					<Button  onClick={handleSaveGraph}>Save Graph</Button>
+	React.useEffect(() => {
+		const handleResize = () => {
+			if (menuBarRef.current) {
+				const menuBarHeight = menuBarRef.current.offsetHeight;
+				setCanvasHeight(window.innerHeight - menuBarHeight - 10);
+			} else {
+				setCanvasHeight(window.innerHeight - 10);
+			}
+		};
 
-				</Space>
-			</DebugLayer>
-		</Content>
-		<ContentRow>
-			<Content pad style={{display: sidebarOpen?"block":"none", maxWidth:"320px"}}>
+		window.addEventListener("resize", handleResize);
+		handleResize();
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 
+	const nodeTypes = useMemo(() => ({
+		custom: (props: any) => <CustomNode {...props} onNodeDataChange={handleNodeDataChange}/>
+	}), [handleNodeDataChange]);
+
+	const handleRun = () => {
+		setIsRunWindowOpen(true);
+	};
+
+	/**
+	 * Center a given node in the flow view
+	 */
+	const centerNode = (item: any, delay: number) => {
+		setTimeout(() => {
+			const centerX = item.position.x + ((item.width || 200) / 2);
+			const centerY = item.position.y + ((item.height || 200) / 2);
+			setCenter(centerX, centerY, {duration: 250, zoom: 1});
+		}, delay);
+	};
+
+	/**
+	 * Clicking a subgraph or node in SubGraphTree
+	 */
+	const handleSelectItem = (item: SubGraph | any, ancestry: SubGraph[]) => {
+		if (item && "graphName" in item) {
+			// It's a subgraph
+			setCurrentGraphName(item.graphName);
+		} else if (item && item.position) {
+			// It's a node
+			const containingGraph = ancestry.length > 0 ? ancestry[ancestry.length - 1] : null;
+			if (containingGraph && containingGraph.graphName !== currentGraphName) {
+				setCurrentGraphName(containingGraph.graphName);
+				centerNode(item, 120);
+			} else {
+				centerNode(item, 20);
+			}
+		}
+		console.log("Selected:", item, "Ancestry:", ancestry);
+	};
+
+	// ---------------------------------------------------------------------------
+	// RENDER
+	// ---------------------------------------------------------------------------
+	return (
+		<Page fixed gap className="oakd content pad">
+			{/* If not editing a project, show project selection */}
+			{!currentProject ? (
+				<>
+					<Content><DebugLayer label={"LangGraph-GUI"}/></Content>
 				<Content>
-					<Paragraph>Graph Tree</Paragraph>
-					<Card pad>
-						<SubGraphTree graphs={subGraphs} onSelect={(item)=>{
-						console.log('SELECTED', item);
-					}}/>
-					</Card>
-					<Space justify={"stretch"}>
-						<Button  onClick={handleAddGraph}>Add Subgraph</Button>
-						<Button onClick={handleLoadSubGraph}>Load Subgraph</Button>
-						<Button  onClick={handleSaveSubGraph}>Save Subgraph</Button>
+					<DebugLayer label="Select a Project"/>
+					<Title>Select a Project</Title>
+					{projects.length === 0 && <Paragraph>No projects available.</Paragraph>}
+					<Space>
+						{projects.map((proj) => (
+							<Button key={proj.name} onClick={() => handleSelectProject(proj)}>
+								{proj.name}
+							</Button>
+						))}
+					</Space>
+					<Space>
+						<Button onClick={handleNewProject}>New Project</Button>
 					</Space>
 				</Content>
-				<Paragraph>{JSON.stringify(subGraphs)}</Paragraph>
-			</Content>
-			<Content grow style={{width:"100%",height:"100%"}}>
-				<DebugLayer label={"Graph"}><ReactFlow
-					nodes={currentGraph.nodes}
-					edges={currentGraph.edges}
-					{...reactFlowProps}
-					nodeTypes={nodeTypes}
-					connectionLineStyle={{ stroke: '#ddd', strokeWidth: 2 }}
 
-				>
-					<MiniMap />
-					<Background />
-					<Controls />
-				</ReactFlow>
+				</>
+			) : (
+				// Otherwise, show the graph editor for the currentProject
+				<>
+					<Content><DebugLayer label={"LangGraph-GUI"} extra={<Paragraph>Project: <strong>{currentProject.name}</strong></Paragraph>}/></Content>
+					<Content>
+						<Space justify="between" wide>
 
-					{contextMenu && contextMenu.type === 'panel' && (
-						<div
-							className="fixed bg-white border border-gray-300 z-1000 p-2"
-							style={{
-								top: contextMenu.mouseY,
-								left: contextMenu.mouseX,
-							}}
-						>
-							<button onClick={()=> handleAddNode({contextMenu, setContextMenu, screenToFlowPosition})} className="block bg-green-500 hover:bg-green-700 text-white font-bold px-2 rounded">Add Node</button>
-							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
-						</div>
-					)}
-					{contextMenu && contextMenu.type === 'node' &&(
-						<div
-							className="fixed bg-white border border-gray-300 z-1000 p-2"
-							style={{
-								top: contextMenu.mouseY,
-								left: contextMenu.mouseX,
-							}}
-						>
-							{/* <button onClick={handleAddEdge} className="block bg-blue-500 hover:bg-blue-700 text-white font-bold px-2 rounded">Add Edge</button> */}
-							<button onClick={()=> handleDeleteNode(contextMenu, setContextMenu)} className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded">Delete Node</button>
-							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
-						</div>
-					)}
-					{contextMenu && contextMenu.type === 'edge' &&(
-						<div
-							className="fixed bg-white border border-gray-300 z-1000 p-2"
-							style={{
-								top: contextMenu.mouseY,
-								left: contextMenu.mouseX,
-							}}
-						>
-							<button onClick={()=> handleDeleteEdge(contextMenu, setContextMenu)} className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded">Delete Edge</button>
-							<button onClick={handleCloseContextMenu} className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded">Cancel</button>
-						</div>
-					)}
+							<Space gap align={"center"}>
+								<Button icon={"Angle"} onClick={handleBackToProjects}>Projects</Button>
+								<Button icon="Bar" size="default" onClick={() => setSidebarOpen(!sidebarOpen)}/>
+								<Paragraph><strong>{currentProject.name.slice(0,33)}</strong></Paragraph>
+								<ButtonGroup>
+									<Button onClick={handleRun}>Run Graph</Button>
+									<Button onClick={handleNewGraphButton}>New Graph</Button>
+									<Button onClick={handleLoadGraph}>Load Graph</Button>
+									<Button onClick={handleSaveGraph}>Save Graph</Button>
+								</ButtonGroup>
+							</Space>
+							<Button onClick={() => setIsConfigWindowOpen(true)}>Settings</Button>
 
-				</DebugLayer>
-			</Content>
-		</ContentRow>
-		<Content>
-			<DebugLayer label="Footer" />
-		</Content>
-	</Page>)
+						</Space>
+					</Content>
 
-	return <div>
+					<ContentRow>
+						{/* Sidebar */}
+						<Content pad style={{display: sidebarOpen ? "block" : "none", maxWidth: "320px"}}>
+							<Content>
+								<Paragraph>
+									Project: <strong>{currentProject.name}</strong>
+								</Paragraph>
+								<Paragraph>Graph Tree</Paragraph>
+								<Card pad>
+									<SubGraphTree
+										graphs={subGraphs}
+										onSelect={handleSelectItem}
+									/>
+								</Card>
+								<Space justify="stretch">
+									<Button onClick={handleAddGraph}>Add Subgraph</Button>
+									<Button onClick={handleLoadSubGraph}>Load Subgraph</Button>
+									<Button onClick={handleSaveSubGraph}>Save Subgraph</Button>
+								</Space>
+							</Content>
+							<Paragraph>{JSON.stringify(subGraphs)}</Paragraph>
+						</Content>
 
-		<button onClick={handleRun}> RUN </button>
-		{isRunWindowOpen && <RunWindow onClose={()=>{
-			setIsRunWindowOpen(false);
-		}} />}
+						{/* Main Graph Area */}
+						<Content grow style={{width: "100%", height: "100%"}}>
+							<DebugLayer
+								label={
+									<Paragraph className="label">
+										<IconApps size="small"/>
+										Graph (<strong>{currentGraphName}</strong>)
+									</Paragraph>
+								}
+							>
+								<ReactFlow
+									nodes={graphInContext.nodes}
+									edges={graphInContext.edges}
+									{...reactFlowProps}
+									nodeTypes={nodeTypes}
+									connectionLineStyle={{stroke: "#ddd", strokeWidth: 2}}
+								>
+									<MiniMap/>
+									<Background/>
+									<Controls/>
+								</ReactFlow>
 
-	</div>
+								{contextMenu && contextMenu.type === "panel" && (
+									<div
+										className="fixed bg-white border border-gray-300 z-1000 p-2"
+										style={{
+											top: contextMenu.mouseY,
+											left: contextMenu.mouseX
+										}}
+									>
+										<button
+											onClick={() =>
+												handleAddNode({contextMenu, setContextMenu, screenToFlowPosition})
+											}
+											className="block bg-green-500 hover:bg-green-700 text-white font-bold px-2 rounded"
+										>
+											Add Node
+										</button>
+										<button
+											onClick={() => setContextMenu(null)}
+											className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded"
+										>
+											Cancel
+										</button>
+									</div>
+								)}
 
-}
+								{contextMenu && contextMenu.type === "node" && (
+									<div
+										className="fixed bg-white border border-gray-300 z-1000 p-2"
+										style={{
+											top: contextMenu.mouseY,
+											left: contextMenu.mouseX
+										}}
+									>
+										<button
+											onClick={() => handleDeleteNode(contextMenu, setContextMenu)}
+											className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded"
+										>
+											Delete Node
+										</button>
+										<button
+											onClick={() => setContextMenu(null)}
+											className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded"
+										>
+											Cancel
+										</button>
+									</div>
+								)}
 
+								{contextMenu && contextMenu.type === "edge" && (
+									<div
+										className="fixed bg-white border border-gray-300 z-1000 p-2"
+										style={{
+											top: contextMenu.mouseY,
+											left: contextMenu.mouseX
+										}}
+									>
+										<button
+											onClick={() => handleDeleteEdge(contextMenu, setContextMenu)}
+											className="block bg-red-500 hover:bg-red-700 text-white font-bold px-2 rounded"
+										>
+											Delete Edge
+										</button>
+										<button
+											onClick={() => setContextMenu(null)}
+											className="block bg-gray-500 hover:bg-gray-700 text-white font-bold px-2 rounded"
+										>
+											Cancel
+										</button>
+									</div>
+								)}
+
+								{isRunWindowOpen && <RunWindow onClose={() => setIsRunWindowOpen(false)}/>}
+								{isConfigWindowOpen && (
+									<ConfigWindow onClose={() => setIsConfigWindowOpen(false)}/>
+								)}
+							</DebugLayer>
+						</Content>
+					</ContentRow>
+
+					<Content>
+						<DebugLayer label="Footer"/>
+					</Content>
+				</>
+			)}
+		</Page>
+	);
+};
