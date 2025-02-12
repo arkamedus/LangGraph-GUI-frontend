@@ -1,17 +1,15 @@
+// NodeRegistry.ts
 import { CustomNodeDefinition } from './CustomNodeTypes';
-import { CustomStartNode } from './nodes/CustomStartNode.tsx';
-import { CustomStepNode } from './nodes/CustomStepNode.tsx';
-import { CustomToolNode } from './nodes/CustomToolNode.tsx';
-import { CustomConditionNode } from './nodes/CustomConditionNode.tsx';
-import { CustomInfoNode } from './nodes/CustomInfoNode.tsx';
-import { CustomSubgraphNode } from './nodes/CustomSubgraphNode.tsx';
+import {CustomStartNode} from "./nodes/CustomStartNode.tsx";
+import {CustomStepNode} from "./nodes/CustomStepNode.tsx";
+// … add other custom node components as needed
 
 export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
 	START: {
 		type: 'START',
 		label: 'Start Node',
 		inputs: [],
-		outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
+		outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' },{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
 		render: CustomStartNode,
 	},
 	STEP: {
@@ -21,35 +19,5 @@ export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
 		outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
 		render: CustomStepNode,
 	},
-	TOOL: {
-		type: 'TOOL',
-		label: 'Tool Node',
-		inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
-		outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
-		render: CustomToolNode,
-	},
-	CONDITION: {
-		type: 'CONDITION',
-		label: 'Condition Node',
-		inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
-		outputs: [
-			{ id: 'true', type: 'output', position: 'right', label: 'True' },
-			{ id: 'false', type: 'output', position: 'bottom', label: 'False' }
-		],
-		render: CustomConditionNode,
-	},
-	INFO: {
-		type: 'INFO',
-		label: 'Info Node',
-		inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
-		outputs: [],
-		render: CustomInfoNode,
-	},
-	SUBGRAPH: {
-		type: 'SUBGRAPH',
-		label: 'Subgraph Node',
-		inputs: [{ id: 'entry', type: 'input', position: 'left', label: 'Entry' }],
-		outputs: [{ id: 'exit', type: 'output', position: 'right', label: 'Exit' }],
-		render: CustomSubgraphNode,
-	},
+	// Add additional node types like CONDITION, TOOL, INFO, SUBGRAPH...
 };

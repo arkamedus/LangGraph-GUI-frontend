@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeResizeControl } from '@xyflow/react';
-import {Content, DebugLayer, IconTriangle, Page, Paragraph} from "oakd";
+import {DebugLayer, IconTriangle, Paragraph} from "oakd";
 import { ReactFlowNodeEXT, ReactNodeProps } from "../../Graph/NodeData";
 import { CustomNodeDefinition } from "../CustomNodeTypes";
 import { nodeRegistry } from "../NodeRegistry";
@@ -114,14 +114,12 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
 					style={{ ...handleStyle, background: '#555' }}
 				/>
 			))}
-			<Page style={{height:"100%"}}>
-				<Content>
-				{nodeTypeSwitch()}
-				</Content>
+			<div>
+
 				{localData.type !== 'START' && (
 					<>
 						{['STEP', 'CONDITION', 'INFO', 'SUBGRAPH'].includes(localData.type) && (
-							<Content>
+							<div>
 								<label htmlFor={generateFieldId("name")} className="block text-xs">
 									Name:
 								</label>
@@ -131,13 +129,13 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
 									value={localData.name || ""}
 									onChange={(e) => handleChange("name", e.target.value)}
 									onBlur={handleBlur}
-								//	className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
+									className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
 									autoComplete="off"
 								/>
-							</Content>
+							</div>
 						)}
 						{localData.type === 'STEP' && (
-							<Content>
+							<div>
 								<label htmlFor={generateFieldId("tool")} className="block text-xs">
 									Tool:
 								</label>
@@ -147,13 +145,13 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
 									value={localData.tool || ""}
 									onChange={(e) => handleChange("tool", e.target.value)}
 									onBlur={handleBlur}
-									//className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
+									className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
 									autoComplete="off"
 								/>
-							</Content>
+							</div>
 						)}
 						{['STEP', 'TOOL', 'CONDITION', 'INFO'].includes(localData.type) && (
-							<Content grow>
+							<div className="flex-grow relative">
 								<label htmlFor={generateFieldId("description")} className="block text-xs">
 									Description:
 								</label>
@@ -163,17 +161,15 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
 									value={localData.description || ""}
 									onChange={(e) => handleChange("description", e.target.value)}
 									onBlur={handleBlur}
-									//className="nodrag w-full h-[calc(100%_-_20px)] absolute top-[20px] left-0 resize-none bg-white border border-gray-300 rounded focus:outline-none"
+									className="nodrag w-full h-[calc(100%_-_20px)] absolute top-[20px] left-0 resize-none bg-white border border-gray-300 rounded focus:outline-none"
 									autoComplete="off"
 								/>
-							</Content>
+							</div>
 						)}
 					</>
 				)}
-				<Content>
 				{nodeDef.render({ data: localData, onChange: handleChange })}
-				</Content>
-			</Page>
+			</div>
 			<NodeResizeControl minWidth={200} minHeight={200}>
 				<IconTriangle />
 			</NodeResizeControl>
