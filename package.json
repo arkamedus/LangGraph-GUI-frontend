@@ -15,7 +15,7 @@
     "@redux-devtools/extension": "^3.3.0",
     "@reduxjs/toolkit": "^2.5.0",
     "@xyflow/react": "^12.3.6",
-    "oakd": "^2.1.3",
+    "oakd": "^2.1.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-redux": "^9.2.0",
