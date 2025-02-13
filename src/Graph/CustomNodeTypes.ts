@@ -12,6 +12,7 @@ export interface CustomNodePort {
 export interface CustomNodeRenderProps {
 	data: ReactFlowNodeEXT;
 	onChange: (field: string, value: any) => void;
+	onBlur: (field: string, value: any) => void;
 }
 
 export interface CustomNodeDefinition {

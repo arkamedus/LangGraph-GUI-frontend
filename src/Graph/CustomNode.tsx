@@ -32,8 +32,9 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
         }
     }, [data]);
 
-    const handleChange = useCallback((field: string, value: any) => {
-        setLocalData(prev => ({ ...prev, [field]: value }));
+    const handleChange = useCallback((evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = evt.target;
+        setLocalData(prev => ({ ...prev, [name]: value }))
     }, []);
 
     const handleBlur = useCallback(() => {
@@ -41,6 +42,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
             onNodeDataChange?.(id, localData);
         }
     }, [id, localData, data, onNodeDataChange]);
+
 
     // Helper to generate unique field IDs
     const generateFieldId = (fieldName: string) => `${id}-${fieldName}`;
@@ -142,7 +144,59 @@ const CustomNode: React.FC<ReactNodeProps> = ({ id, width, height, data, onNodeD
                 <Content>
                     {nodeTypeSwitch()}
                 </Content>
-                {nodeDef.render({ data: localData, onChange: handleChange })}
+                {localData.type !== 'START' && (
+                    <>
+                        {['STEP', 'CONDITION', 'INFO', 'SUBGRAPH'].includes(localData.type) && (
+                            <div>
+                                <label htmlFor={generateFieldId("name")} className="block text-xs">
+                                    Name:
+                                </label>
+                                <input
+                                    id={generateFieldId("name")}
+                                    name="name"
+                                    value={localData.name || ""}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
+                                    autoComplete="off"
+                                />
+                            </div>
+                        )}
+                        {localData.type === 'STEP' && (
+                            <div>
+                                <label htmlFor={generateFieldId("tool")} className="block text-xs">
+                                    Tool:
+                                </label>
+                                <input
+                                    id={generateFieldId("tool")}
+                                    name="tool"
+                                    value={localData.tool || ""}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
+                                    autoComplete="off"
+                                />
+                            </div>
+                        )}
+                        {['STEP', 'TOOL', 'CONDITION', 'INFO'].includes(localData.type) && (
+                            <div className="flex-grow relative">
+                                <label htmlFor={generateFieldId("description")} className="block text-xs">
+                                    Description:
+                                </label>
+                                <textarea
+                                    id={generateFieldId("description")}
+                                    name="description"
+                                    value={localData.description || ""}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className="nodrag w-full h-[calc(100%_-_20px)] absolute top-[20px] left-0 resize-none bg-white border border-gray-300 rounded focus:outline-none"
+                                    autoComplete="off"
+                                />
+                            </div>
+                        )}
+                    </>
+                )}
+
             </Page>
             <NodeResizeControl minWidth={200} minHeight={100}>
                 <IconTriangle size={"small"} />
