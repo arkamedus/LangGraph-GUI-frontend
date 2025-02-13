@@ -92,3 +92,44 @@ textarea {
 .pad-v {
   padding: var(--leading) 0 calc( var(--leading) * 2) 0;
 }
+
+.node__header {
+  background: #ebf6f6;
+}
+
+.execution__container.running .debug-layer {
+    border-color: #33c2ff;
+}
+
+.execution__container.running .execution__node {
+
+}
+
+.execution__container.running .execution__node{
+  opacity: 1;
+  border: 1px solid #d0d0d0;
+}
+.execution__container.running .execution__node .node__header {
+  background: #e8e8e8;
+}
+
+
+.execution__container.running .execution__node.node__active {
+    opacity: 1;
+    border: 1px solid #8c4803;
+}
+.execution__container.running .execution__node.node__active .node__header {
+  background: #fce9d3;
+}
+
+
+
+.execution__container.error .execution__node.node__active {
+    opacity: 1;
+    border: 1px solid #cc0000;
+}
+.execution__container.error .execution__node.node__active .node__header {
+  background: #fcd3d3;
+}
+
+

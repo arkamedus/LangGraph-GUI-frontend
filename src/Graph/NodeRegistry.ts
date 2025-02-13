@@ -5,6 +5,7 @@ import { CustomToolNode } from './nodes/CustomToolNode.tsx';
 import { CustomConditionNode } from './nodes/CustomConditionNode.tsx';
 import { CustomInfoNode } from './nodes/CustomInfoNode.tsx';
 import { CustomSubgraphNode } from './nodes/CustomSubgraphNode.tsx';
+import {CustomAccumulatorNode} from "./nodes/CustomAccumulatorNode.tsx";
 
 export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
     START: {
@@ -14,6 +15,14 @@ export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
         outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
         optionalOutputs: ["next"],
         render: CustomStartNode,
+    },
+    ACCUMULATE: {
+        type: 'ACCUMULATE',
+        label: 'Accumulate',
+        inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
+        outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
+        optionalOutputs: ["next"],
+        render: CustomAccumulatorNode,
     },
     STEP: {
         type: 'STEP',

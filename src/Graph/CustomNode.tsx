@@ -1,7 +1,7 @@
 // CustomNode.tsx
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Handle, Position, NodeResizeControl} from '@xyflow/react';
-import {Content, DebugLayer, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
+import {Content, DebugLayer, IconStar, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
 import {ReactFlowNodeEXT, ReactNodeProps} from "./NodeData";
 import {CustomNodeDefinition, CustomNodePort} from "./CustomNodeTypes";
 import {nodeRegistry} from "./NodeRegistry";
@@ -75,6 +75,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                 {value: "CONDITION", element: <Paragraph>CONDITION</Paragraph>},
                 {value: "INFO", element: <Paragraph>INFO</Paragraph>},
                 {value: "SUBGRAPH", element: <Paragraph>SUBGRAPH</Paragraph>},
+                {value: "ACCUMULATE", element: <Paragraph>ACCUMULATE</Paragraph>},
             ]} placeholder="Node Type"/>
 
     );
@@ -138,7 +139,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     return (
         <div
-            className="custom-node-container oakd card"
+            className={["custom-node-container oakd card execution__node ",data.__EXECUTION?"node__active":undefined].filter(Boolean).join("")}
             style={{width, height, position: 'relative', minWidth: "200px", minHeight: "45px"}}
         >
             {/* Render input handles */}
@@ -147,7 +148,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             {renderHandles(nodeDef.outputs, 'source')}
 
             <Page style={{height: "100%", overflow: "hidden", borderRadius: "inherit"}}>
-                <Content style={{background: "#ebf6f6"}} pad><Space gap>{nodeTypeSwitch()}</Space></Content>
+                <Content className={"node__header"} pad ><Space gap justify={"between"} wide>{nodeTypeSwitch()} {data.__EXECUTION&&<IconTriangle size={"small"}/>}</Space></Content>
 
                 {/* Call the custom render function – each custom component now handles its own fields */}
                 {nodeDef.render({data: localData, onChange: handleChange, onBlur: handleBlur, subGraph:subGraph })}

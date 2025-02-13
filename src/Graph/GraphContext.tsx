@@ -119,8 +119,6 @@ export const GraphProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     const handleNodesChange = useCallback((graphName: string, changes: NodeChange[]) => {
-        // Filter out ephemeral changes (e.g. "select")
-        console.log("changes", changes);
         const stableChanges = changes.filter(change => !["select"].includes(change.type));
         if (stableChanges.length === 0) return;
 

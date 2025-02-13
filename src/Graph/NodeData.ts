@@ -12,6 +12,7 @@ export interface ReactFlowNodeEXT {
     true_next?: string | null | undefined;
     false_next?: string | null | undefined;
     info?: string | null;
+    __EXECUTION?:boolean;
 }
 
 export interface ReactNodeProps {

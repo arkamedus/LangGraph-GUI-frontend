@@ -31,7 +31,7 @@ export const CustomStepNode: React.FC<CustomNodeRenderProps> = ({data, onChange,
                     <label className="block text-xs">Description:</label>
                 </div>
             </Content>
-            <ContentRow>
+            <ContentRow >
                 <textarea
                     value={data.description || ""}
                     onBlur={onBlur}

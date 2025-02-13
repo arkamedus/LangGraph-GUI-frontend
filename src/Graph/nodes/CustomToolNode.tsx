@@ -10,6 +10,13 @@ export const CustomToolNode: React.FC<CustomNodeRenderProps> = ({data, onChange,
     return (
         <Page style={{height:"100%"}} className={"pad-v"}>
             <Content className={"node_container"}>
+                <label className="block text-xs">Name:</label>
+                <input
+                    value={data.name || ""}
+                    onChange={handleFieldChange("name")}
+                    onBlur={onBlur}
+                    className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none mb-2"
+                />
                 <label className="block text-xs">Description:</label>
             </Content>
             <ContentRow>
