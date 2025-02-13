@@ -216,7 +216,7 @@ export const Context: React.FC = () => {
 
     function handleSaveGraph() {
         const jsonData = allSubGraphsToJson(subGraphs);
-        saveJsonToFile("Save.json", jsonData);
+        saveJsonToFile(`graph_${currentGraphName}.json`, jsonData);
     }
 
     // ---------------------------------------------------------------------------
