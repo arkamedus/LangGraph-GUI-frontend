@@ -2,6 +2,12 @@
 
 import {SubGraph} from "./GraphContext.tsx";
 
+export interface ExecutionState {
+    graph : string;
+    node: string;
+    status: string;
+}
+
 export interface ReactFlowNodeEXT {
     type: string;
     name?: string | undefined;

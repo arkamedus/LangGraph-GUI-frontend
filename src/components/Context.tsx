@@ -39,16 +39,11 @@ import ConfigWindow from "../GraphMenu/ConfigWindow";
 // Custom Node/Edge
 import CustomEdge from "../Graph/CustomEdge.tsx";
 import CustomNode from "../Graph/CustomNode.tsx";
+import {ExecutionState} from "../Graph/NodeData.ts";
 
 interface Project {
 	name: string;
 	graphs: SubGraph[];
-}
-
-interface ExecutionState {
-	graph : string;
-	node: string;
-	status: string;
 }
 
 export const Context: React.FC = () => {
@@ -551,6 +546,7 @@ export const Context: React.FC = () => {
 					</ContentRow>
 					<Content>
 						<RunWindow
+							executionState={executionState}
 							subGraphs={currentProject.graphs}
 							onGraphMessage={(graph, message) => {
 								// When a message comes in from RunWindow that includes a "graph" parameter,

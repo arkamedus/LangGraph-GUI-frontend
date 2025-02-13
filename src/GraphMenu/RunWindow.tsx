@@ -1,40 +1,62 @@
-// GraphMenu/RunWindow.tsx
-
-import {useState, useEffect, useRef} from 'react';
-import {SubGraph, useGraph} from '../Graph/GraphContext';
-import {allSubGraphsToJson} from '../Graph/JsonUtil';
+import { useState, useEffect, useRef } from 'react';
+import { SubGraph, useGraph } from '../Graph/GraphContext';
+import { allSubGraphsToJson } from '../Graph/JsonUtil';
 import ConfigManager from '../utils/ConfigManager';
-import {Button, ButtonGroup, Card, Paragraph, Space} from "oakd";
+import { Button, ButtonGroup, Paragraph, Space } from "oakd";
+import { ExecutionState } from "../Graph/NodeData.ts";
+import {convertUTCToLocalDatetime} from "../utils/DateTime.ts";
 
 interface RunWindowProps {
 	onClose: () => void;
 	onClear: () => void;
-	// New callback prop: when a message contains a "graph" parameter,
-	// this callback is invoked with the graph name and the full message.
 	onGraphMessage?: (graph: string, message: any) => void;
 	subGraphs: SubGraph[];
+	executionState: ExecutionState;
 }
 
-function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps) {
-	const [responseMessage, setResponseMessage] = useState('');
+type ResponseMessageType = "system" | "graph";
+
+interface IResponseMessage {
+	message: string;
+	type:ResponseMessageType;
+	error?: boolean;
+	created_at?:string;
+}
+
+class ResponseMessage implements IResponseMessage{
+	message = "";
+	type:ResponseMessageType = "system";
+	error = false;
+	created_at = new Date().toISOString();
+	constructor(options:IResponseMessage) {
+		 if (options){
+			 this.message = options.message;
+			 this.type = options.type;
+			 this.error = options.error||false;
+		 }
+	}
+}
+
+function RunWindow({ onClose, onGraphMessage, subGraphs, onClear, executionState }: RunWindowProps) {
+	const [responseMessages, setResponseMessages] = useState<ResponseMessage[]>([]);
+	const [cachedState, setCachedState] = useState<ExecutionState>(executionState);
 	const [isRunning, setIsRunning] = useState(false);
-	const {username, llmModel, apiKey} = ConfigManager.getSettings();
+	const { username, llmModel, apiKey } = ConfigManager.getSettings();
 	const isPollingRef = useRef(false);
 	const outputRef = useRef<HTMLDivElement>(null);
 	const bottomRef = useRef<HTMLDivElement>(null);
-
 
 	const SERVER_URL = import.meta.env.VITE_BACKEND_URL;
 
 	const uploadGraphData = async () => {
 		try {
 			const flowData = allSubGraphsToJson(subGraphs);
-			console.log('uploading', subGraphs);
-			if (!username) {
-				throw new Error("Username not available to upload graph data.");
-			}
+			console.log('Uploading graph data', subGraphs);
+
+			if (!username) throw new Error("Username not available to upload graph data.");
+
 			const jsonString = JSON.stringify(flowData, null, 2);
-			const blob = new Blob([jsonString], {type: 'application/json'});
+			const blob = new Blob([jsonString], { type: 'application/json' });
 			const graphFile = new File([blob], 'graph.json');
 
 			const formData = new FormData();
@@ -51,14 +73,14 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 			}
 
 			console.log('Graph data successfully uploaded to server.');
-			setResponseMessage(prev => prev + '\nGraph data successfully uploaded to server.\n');
+			setResponseMessages(prev => [...prev, new ResponseMessage({ message: 'Graph data successfully uploaded to server.',type:"system" })]);
+
 		} catch (error: unknown) {
 			let errorMessage = "An unknown error occurred";
-			if (error instanceof Error) {
-				errorMessage = error.message;
-			}
+			if (error instanceof Error) errorMessage = error.message;
+
 			console.error('Error uploading graph data:', errorMessage);
-			setResponseMessage(prev => prev + '\nError uploading graph data: ' + errorMessage);
+			setResponseMessages(prev => [...prev, new ResponseMessage({ message: `Error uploading graph data: ${errorMessage}`,type:"system", error:true })]);
 			throw error;
 		}
 	};
@@ -66,105 +88,76 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 	const handleRun = async () => {
 		if (isRunning) return;
 		setIsRunning(true);
-		setResponseMessage('');
-		if (onGraphMessage) {
-			onGraphMessage('root', {__EXECUTION: "running"});
-		}
+		//setResponseMessages([]);
+		if (onGraphMessage) onGraphMessage('root', { __EXECUTION: "running" });
 
 		try {
-
 			await uploadGraphData();
 			console.log("Attempting to send request to Flask server...");
 
-			if (!username) {
-				throw new Error("Username not available to run.");
-			}
+			if (!username) throw new Error("Username not available to run.");
 
 			const response = await fetch(`${SERVER_URL}/run/${encodeURIComponent(username)}`, {
 				method: 'POST',
-				headers: {'Content-Type': 'application/json'},
-				body: JSON.stringify({
-					username: username,
-					llm_model: llmModel,
-					api_key: apiKey,
-				}),
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ username, llm_model: llmModel, api_key: apiKey }),
 			});
 
-			if (!response.body) {
-				throw new Error('ReadableStream not yet supported in this browser.');
-			}
+			if (!response.body) throw new Error('ReadableStream not yet supported in this browser.');
 
 			const reader = response.body.getReader();
 			const decoder = new TextDecoder();
 			let done = false;
 
 			while (!done) {
-				const {value, done: streamDone} = await reader.read();
+				const { value, done: streamDone } = await reader.read();
 				done = streamDone;
 				if (value) {
-					const chunk = decoder.decode(value, {stream: !done});
-					// Split the chunk into individual stdout lines.
+					const chunk = decoder.decode(value, { stream: !done });
 					const lines = chunk.split("\n");
+
 					lines.forEach((line: string) => {
-						// Remove any leading/trailing whitespace.
-						//
 						const trimmed = line.trim();
 						if (!trimmed) return;
-						// Remove the "data: STDOUT:" prefix if present.
-						const jsonPart = trimmed.replace("data: STDOUT: ", "");
-						try {
-							const parsed = JSON.parse(jsonPart);
-							console.log(parsed);
-							// If the message contains a "graph" parameter, invoke the callback.
-							if (parsed.graph && onGraphMessage) {
-								onGraphMessage('root', parsed);
-							}
-						} catch (error) {
-//                            console.error("Error parsing stdout chunk:", error);
-						}
 
 						try {
 							const parsed = JSON.parse(line.replace("data: ", "").trim());
-							console.warn(parsed);
+
 							if (parsed.status) {
-								if (onGraphMessage) {
-									onGraphMessage('root', {__EXECUTION: parsed.status});
-								}
-								if (parsed.status === "success") {
-									setIsRunning(false);
-								} else if (parsed.status === "error") {
-									setIsRunning(false);
+								console.warn(parsed);
+								setResponseMessages(prev => [...prev, new ResponseMessage({ message: parsed.message||"--no message provided--",type:"system", error:parsed.status==="error" })]);
+								if (onGraphMessage) onGraphMessage('root', { __EXECUTION: parsed.status });
+								if (parsed.status === "success" || parsed.status === "error") setIsRunning(false);
+							} else if (parsed.stream) {
+								const jsonPart = parsed.message;
+								try {
+									const parsedMessage = JSON.parse(jsonPart);
+									console.log(parsedMessage);
+									if (parsedMessage.graph && onGraphMessage) {
+										onGraphMessage('root', parsedMessage);
+									}
+									setResponseMessages(prev => [...prev, new ResponseMessage({ message: jsonPart,type:"graph" })]);
+								} catch (error) {
+									console.error("Error parsing stdout chunk:", error);
 								}
 							}
 						} catch (error) {
-							//console.error(error);
-							// Ignore parsing errors for non-JSON chunks.
+							console.error("Invalid JSON:", line);
 						}
-
 					});
-					// Append raw chunk to our output.
-					setResponseMessage(prev => prev + chunk);
-					// Optionally, check if the parsed message signals completion.
-
 				}
 			}
-
 		} catch (error: unknown) {
 			let errorMessage = "An unknown error occurred";
-			if (error instanceof Error) {
-				errorMessage = error.message;
-			}
-			console.error('Error:', errorMessage);
-			setResponseMessage(prev => prev + '\nError: ' + errorMessage);
-			// alert('Error: ' + errorMessage);
-			setIsRunning(false);
-			if (onGraphMessage) {
-				onGraphMessage('root', {__EXECUTION: "error"});
-			}
+			if (error instanceof Error) errorMessage = error.message;
 
+			console.error('Error:', errorMessage);
+			setResponseMessages(prev => [...prev, new ResponseMessage({ message: `Error: ${errorMessage}`,type:"system", error:true })]);
+			setIsRunning(false);
+			if (onGraphMessage) onGraphMessage('root', { __EXECUTION: "error" });
 		} finally {
 			if (isPollingRef.current) {
-				//    setIsRunning(false);
+				// Handle polling cleanup if necessary
 			}
 		}
 	};
@@ -173,9 +166,8 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 		isPollingRef.current = true;
 		const checkStatus = async () => {
 			try {
-				if (!username) {
-					throw new Error("Username not available to check status.");
-				}
+				if (!username) throw new Error("Username not available to check status.");
+
 				const response = await fetch(`${SERVER_URL}/status/${encodeURIComponent(username)}`, {
 					method: 'GET',
 				});
@@ -188,6 +180,7 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 				console.error('Error checking status:', error);
 			}
 		};
+
 		const interval = setInterval(checkStatus, 2000);
 		return () => {
 			isPollingRef.current = false;
@@ -195,24 +188,26 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 		};
 	}, [username, SERVER_URL]);
 
-	// Auto-scroll output log when responseMessage updates
 	useEffect(() => {
 		if (bottomRef.current) {
-			bottomRef.current.scrollIntoView({behavior: 'smooth'});
+			bottomRef.current.scrollIntoView({ behavior: 'smooth' });
 		}
-	}, [responseMessage]);
+	}, [responseMessages]);
 
-	const handleLeave = async () => {
-		onClose();
-	};
+	useEffect(() => {
+		setCachedState(executionState);
+	}, [executionState]);
 
-	const handleClear = async () => {
-		setResponseMessage("");
+	const handleLeave = () => onClose();
+	const handleClear = () => {
+		setResponseMessages([]);
 		onClear();
 	};
 
+	const hasMessages = responseMessages.length > 0;
+
 	return (
-		<div style={{maxHeight: "400px", height: "100%"}} className="oakd standardized-reset standardized-text">
+		<div style={{ height: "100%" }} className="oakd standardized-reset standardized-text">
 			<Space direction={"vertical"} gap>
 				<ButtonGroup>
 					<Button
@@ -226,25 +221,39 @@ function RunWindow({onClose, onGraphMessage, subGraphs, onClear}: RunWindowProps
 					<Button
 						onClick={handleClear}
 						type="warning"
-						disabled={responseMessage === ""}
+						disabled={!hasMessages}
 					>
 						Clear Output
 					</Button>
 				</ButtonGroup>
-				<div
-					ref={outputRef}
-					className={responseMessage ? "oakd card pad" : ''}
-					style={{
-						width: "100%",
-						maxWidth: "100%",
-						maxHeight: "300px",
-						height: isRunning ? "100%" : "auto",
-						overflowY: "scroll"
-					}}
-				>
-					{responseMessage && <pre>{responseMessage}</pre>}
-					<div ref={bottomRef}/>
-				</div>
+				<Space gap justify={"stretch"} wide>
+					<div
+						ref={outputRef}
+						className={hasMessages ? "oakd card pad terminal" : ''}
+						style={{
+							width: "100%",
+							maxWidth: "100%",
+							maxHeight: "300px",
+							height: isRunning ? "100%" : "auto",
+							overflowY: "scroll"
+						}}
+					>
+						{hasMessages && responseMessages.slice(-200).map((rm, index) => (
+							<div key={index} className={["entry",rm.type,rm.error?"error":undefined,"pad-h"].filter(Boolean).join(" ")}>
+
+								<Space wide gap style={{flexWrap:"nowrap"}}>
+									<Paragraph className={"pad-h"} style={{width:"auto", whiteSpace:"nowrap"}}><strong>{convertUTCToLocalDatetime(rm.created_at)}</strong></Paragraph>
+									<Paragraph>|</Paragraph>
+								<Paragraph className={"pad-h"} style={{width:"100%"}}>{rm.message}</Paragraph>
+								</Space>
+							</div>
+						))}
+						<div ref={bottomRef} />
+					</div>
+
+						<textarea style={{maxHeight:"100px", overflowY:"scroll"}} value={JSON.stringify(cachedState)} readOnly />
+
+				</Space>
 			</Space>
 		</div>
 	);

@@ -89,8 +89,18 @@ textarea {
   margin: 0 42px;
 }
 
+.gap {
+
+  column-gap: var(--gap-sizing);
+  row-gap: var(--gap-sizing);
+
+}
+
 .pad-v {
   padding: var(--leading) 0 calc( var(--leading) * 2) 0;
+}
+.pad-h {
+  padding: 0 calc( var(--leading) * 2) 0 var(--leading);
 }
 
 .node__header {
@@ -98,7 +108,11 @@ textarea {
 }
 
 .execution__container.running .debug-layer {
-    border-color: #33c2ff;
+    border-color: #ffc963;
+}
+
+.execution__container.running .debug-layer .header > .label {
+    background-color: #fff3d3;
 }
 
 .execution__container.running .execution__node {
@@ -133,3 +147,22 @@ textarea {
 }
 
 
+
+.terminal {
+
+}
+
+.terminal .entry {
+  border-bottom: 1px solid #eee;
+}
+
+.terminal .entry.system {
+  background-color: #d0d0d0;
+  border-bottom: 1px solid #cecece;
+}
+
+.terminal .entry.error {
+  background-color: #ffa9a9;
+  color: #801717;
+  border-bottom: 1px solid #ff6060;
+}
