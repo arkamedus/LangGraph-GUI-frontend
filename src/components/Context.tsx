@@ -1,4 +1,4 @@
-import React, { useState, useCallback} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {
     Button,
     ButtonGroup,
@@ -18,7 +18,7 @@ import {
     EdgeChange,
     MiniMap,
     NodeChange,
-    ReactFlow,
+    ReactFlow, ReactFlowProps,
     useReactFlow
 } from "@xyflow/react";
 import {SubGraph, useGraph} from "../Graph/GraphContext";
@@ -83,7 +83,6 @@ export const Context: React.FC = () => {
     } = useGraphActions();
 
     const {screenToFlowPosition, setCenter} = useReactFlow();
-    const graphInContext = getCurrentGraph();
 
     // ---------------------------------------------------------------------------
     // PROJECT SELECTION / LOADING
@@ -219,34 +218,6 @@ export const Context: React.FC = () => {
         saveJsonToFile(`graph_${currentGraphName}.json`, jsonData);
     }
 
-    // ---------------------------------------------------------------------------
-    // REACT FLOW: Node + Edge Updates
-    // ---------------------------------------------------------------------------
-
-    function onNodesChange(changes: NodeChange[]) {
-        console.log("onNodesChange =>", changes);
-        // Filter out ephemeral "select"/"dragging"/"dimensions"
-        const stableChanges = changes.filter(
-            (change) => !["select"].includes(change.type)
-        );
-        if (stableChanges.length > 0) {
-            handleNodesChange(currentGraphName, stableChanges);
-        }
-    }
-
-    // 2) onEdgesChange is unchanged
-    function onEdgesChange(changes: EdgeChange[]) {
-        console.log("onEdgesChange =>", changes);
-        handleEdgesChange(currentGraphName, changes);
-    }
-
-    // Basic edge click
-    function handleEdgeClick(event: React.MouseEvent, edge: ReactFlowEdge) {
-        event.preventDefault();
-        event.stopPropagation();
-        console.log("handleEdgeClick", edge);
-    }
-
     // Node data changes => we do allow immediate updates from node onBlur or final step
     // (But see below for how we only finalize them on blur in the node component)
 
@@ -282,19 +253,49 @@ export const Context: React.FC = () => {
         setIsRunWindowOpen(true);
     }
 
-    // Node/Edge definitions
-    const nodeTypes = {
-        custom: (props: any) => (
-            <CustomNode
-                {...props}
-                subGraph={getCurrentGraph()}
-                onNodeDataChange={(nodeId, newData) => {
-                    // We'll call updateNodeData only after the user finishes (in the node's onBlur).
-                    updateNodeData(currentGraphName, nodeId, newData);
-                }}
-            />
-        ),
-    };
+
+    const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
+
+        updateNodeData(currentGraphName, nodeId, newData)
+    }, [updateNodeData, currentGraphName]);
+
+    const handleEdgeClick = useCallback((event: React.MouseEvent, edge: ReactFlowEdge) => {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log("handleEdgeClick", edge)
+    }, [])
+
+
+
+    const currentGraph = useMemo(()=> getCurrentGraph(), [getCurrentGraph]);
+
+    const handleCloseContextMenu = useCallback(() => {
+        setContextMenu(null);
+    }, []);
+
+
+    const reactFlowProps = useMemo<ReactFlowProps>(() => ({
+        onContextMenu: (event: React.MouseEvent)=> handlePanelContextMenu(event, setContextMenu),
+        onClick: handleCloseContextMenu,
+        onNodesChange: (changes: NodeChange[]) => handleNodesChange(currentGraphName, changes),
+        onEdgesChange: (changes: EdgeChange[]) => handleEdgesChange(currentGraphName, changes),
+        onEdgeClick: handleEdgeClick,
+        onConnect: handleAddEdge,
+        edgeTypes: {
+            custom: (props) => {
+                const {sourceNode, targetNode} = props.data || {}
+                return <CustomEdge {...props} sourceNode={sourceNode} targetNode={targetNode} />
+            },
+        },
+    }),[handlePanelContextMenu,handleCloseContextMenu, handleNodesChange, handleEdgesChange, handleEdgeClick, handleAddEdge, currentGraphName, setContextMenu])
+
+    const nodeTypes = useMemo(() => ({
+        custom: (props: any) => <CustomNode {...props}
+                                            subGraph={getCurrentGraph()}
+                                            onNodeDataChange={handleNodeDataChange}  />,
+    }), [handleNodeDataChange]);
+
+
 
     return (
         <Page fixed gap className="oakd content pad">
@@ -441,30 +442,16 @@ export const Context: React.FC = () => {
                                 }
                             >
                                 <ReactFlow
-                                    nodes={graphInContext.nodes}
-                                    edges={graphInContext.edges}
-                                    onNodesChange={onNodesChange}
-                                    onEdgesChange={onEdgesChange}
-                                    onConnect={(connection) => {
-                                        console.log("New connection", connection);
-                                        // This is where you can add the new edge to your state
-                                        handleAddEdge(connection);
-                                    }}
-                                    onEdgeClick={(evt, edge) => handleEdgeClick(evt, edge)}
-                                    onContextMenu={(evt) => handlePanelContextMenu(evt, setContextMenu)}
-                                    onClick={() => setContextMenu(null)}
+                                    nodes={currentGraph.nodes}
+                                    edges={currentGraph.edges}
+                                    {...reactFlowProps}
                                     nodeTypes={nodeTypes}
-                                    edgeTypes={{
-                                        custom: (props) => {
-                                            const {sourceNode, targetNode} = props.data || {}
-                                            return <CustomEdge {...props} sourceNode={sourceNode} targetNode={targetNode} />
-                                        },
-                                    }}
-                                    connectionLineStyle={{stroke: "#ddd", strokeWidth: 4}}
+                                    connectionLineStyle={{ stroke: '#ddd', strokeWidth: 2 }}
+
                                 >
-                                    <MiniMap/>
-                                    <Background/>
-                                    <Controls/>
+                                    <MiniMap />
+                                    <Background />
+                                    <Controls />
                                 </ReactFlow>
 
                                 {contextMenu && contextMenu.type === "panel" && (

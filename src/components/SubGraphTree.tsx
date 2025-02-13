@@ -1,8 +1,9 @@
+// SubGraphTree.tsx
 import React, { useEffect, useState } from "react";
 import { SubGraph } from "../Graph/GraphContext";
 import { Node as XYNode } from "@xyflow/react";
-import {Button, ButtonGroup, IconTriangle, Paragraph, Space} from "oakd";
-import {nodeRegistry} from "../Graph/NodeRegistry.ts";
+import { Button, ButtonGroup, IconTriangle, Paragraph, Space } from "oakd";
+import { nodeRegistry } from "../Graph/NodeRegistry.ts";
 
 // Extend XYNode so our GraphNode has required fields.
 export interface GraphNode extends XYNode {
@@ -31,62 +32,60 @@ export interface SubGraphTreeProps {
 }
 
 /**
- * Validate each node in the graph using the same required/optional edge logic as in node validation.
- * Ensures safe defaults for nexts/prevs.
+ * Recalculate the predecessors and successors for each node in the graph from scratch.
+ * This version resets node.data.prevs and node.data.nexts so duplicates are not accumulated.
  */
-const getGraphStatus = (graph: SubGraph) => {
-    if (!graph || !Array.isArray(graph.nodes)) return { missingNodes: [] };
+export const getGraphStatus = (graph: SubGraph) => {
+	if (!graph || !Array.isArray(graph.nodes)) return { missingNodes: [] };
 
-    const missingNodes: string[] = [];
-    const nodeMap = new Map<string, GraphNode>();
-    const prevsMap = new Map<string, string[]>(); // Derived prevs from edges
+	const missingNodes: string[] = [];
+	const nodeMap = new Map<string, GraphNode>();
 
-    // Map nodes by ID and ensure nexts/prevs are defined
-    graph.nodes.forEach((node: any) => {
-        nodeMap.set(node.id, node);
-        if (!Array.isArray(node.data.prevs)) node.data.prevs = [];
-        if (!Array.isArray(node.data.nexts)) node.data.nexts = [];
-        prevsMap.set(node.id, node.data.prevs);
-    });
+	// Reset each node's prevs and nexts arrays and build a node map.
+	graph.nodes.forEach((node: GraphNode) => {
+		node.data.prevs = [];  // Reset!
+		node.data.nexts = [];  // Reset!
+		nodeMap.set(node.id, node);
+	});
 
-    // Populate prevs from edges (if any)
-    (graph.edges || []).forEach((edge) => {
-        if (prevsMap.has(edge.target)) {
-			prevsMap.get(edge.target)!.push(edge.source);
-        }
-    });
+	// Populate prevs and nexts based on current edges.
+	(graph.edges || []).forEach((edge) => {
+		const targetNode = nodeMap.get(edge.target);
+		if (targetNode) {
+			targetNode.data.prevs.push(edge.source);
+		}
+		const sourceNode = nodeMap.get(edge.source);
+		if (sourceNode) {
+			sourceNode.data.nexts.push(edge.target);
+		}
+	});
 
-    // For each node, compare actual vs required edges
-    nodeMap.forEach((node) => {
-        const nodeDef = nodeRegistry[node.data.type] || { inputs: [], outputs: [], optionalOutputs: [] };
-        const expectedInputs = nodeDef.inputs || [];
-        const expectedOutputs = nodeDef.outputs || [];
-        const optionalOutputs = nodeDef.optionalOutputs || [];
-        const actualPrevs = prevsMap.get(node.id) || [];
+	// Validate each node’s connections.
+	nodeMap.forEach((node) => {
+		const nodeDef = nodeRegistry[node.data.type] || { inputs: [], outputs: [], optionalOutputs: [] };
+		const expectedInputs = nodeDef.inputs || [];
+		const expectedOutputs = nodeDef.outputs || [];
+		const optionalOutputs = nodeDef.optionalOutputs || [];
+		const actualPrevs = node.data.prevs;
 
-        // (Re)assign prevs if needed
-        if (node.data.prevs.length === 0 && actualPrevs.length > 0) {
-            node.data.prevs = actualPrevs;
-        }
+		// If the node requires incoming connections and none exist (except for START nodes), note a warning.
+		if (expectedInputs.length > 0 && actualPrevs.length === 0 && node.data.type !== "START") {
+			missingNodes.push(`${node.data.name} (${node.data.type}) has no incoming connections`);
+		}
 
-        // Missing inputs: if required inputs exist and none are connected (except for START nodes)
-        if (expectedInputs.length > 0 && actualPrevs.length === 0 && node.data.type !== "START") {
-            missingNodes.push(`${node.data.name} (${node.data.type}) has no incoming connections`);
-        }
+		// Check required outputs (ignoring optional ones).
+		const requiredOutputs = expectedOutputs.filter(output => !optionalOutputs.includes(output.id));
+		if (requiredOutputs.length > 0 && node.data.nexts.length === 0) {
+			missingNodes.push(`${node.data.name} (${node.data.type}) has no outgoing connections`);
+		}
 
-        // Missing outputs: check only for required outputs (ignore optional ones)
-        const requiredOutputs = expectedOutputs.filter(output => !optionalOutputs.includes(output.id));
-        if (requiredOutputs.length > 0 && node.data.nexts.length === 0) {
-            missingNodes.push(`${node.data.name} (${node.data.type}) has no outgoing connections`);
-        }
+		// Special rule: START nodes must have at least one outgoing connection.
+		if (node.data.type === "START" && node.data.nexts.length === 0) {
+			missingNodes.push(`${node.data.name} (START) must have at least one outgoing connection`);
+		}
+	});
 
-        // START nodes must have at least one outgoing connection
-        if (node.data.type === "START" && node.data.nexts.length === 0) {
-            missingNodes.push(`${node.data.name} (START) must have at least one outgoing connection`);
-        }
-    });
-
-    return { missingNodes };
+	return { missingNodes };
 };
 
 interface GraphTreeNodeProps {
@@ -98,54 +97,97 @@ interface GraphTreeNodeProps {
 	topGraphNames: Set<string>;
 }
 
-const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({ graph, ancestry, onSelect, onDelete, onExport, topGraphNames }) => {
-    const [expanded, setExpanded] = useState(true);
-    // Get aggregated warnings from all child nodes in the graph
-    const { missingNodes } = getGraphStatus(graph);
+const GraphTreeNode: React.FC<GraphTreeNodeProps> = ({
+														 graph,
+														 ancestry,
+														 onSelect,
+														 onDelete,
+														 onExport,
+														 topGraphNames,
+													 }) => {
+	const [expanded, setExpanded] = useState(true);
+	// Get aggregated warnings from the graph.
+	const { missingNodes } = getGraphStatus(graph);
 
-    const toggleExpanded = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpanded(prev => !prev);
-    };
+	const toggleExpanded = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setExpanded((prev) => !prev);
+	};
 
-    return (
-        <>
-            <div onClick={(e: any) => { e.stopPropagation(); onSelect(graph, ancestry); }} style={{width:"100%"}}>
-                <Space className="tree-node graph-node" align={"center"} style={{ fontWeight: "bold", cursor: "pointer" }} wide gap justify={"between"}>
-                    <Paragraph>
-                        <span onClick={toggleExpanded}>
-                            {expanded ? "▼" : "▶"}
-                        </span>
-                        {graph.graphName} (Nodes: {graph.nodes.length})
-                        {missingNodes.length > 0 && (
-                            <span style={{ color: "red" }}>
-                                {" "}
-                                <IconTriangle size={"small"} /> {/*{missingNodes.length} Node(s) Missing Connections*/}
-                            </span>
-                        )}
-
-                    </Paragraph>
-                    <ButtonGroup>
-                        {onDelete && (
-                            <Button size={"small"} icon={"Trash"} type={graph.graphName==="root"?"warning":"danger"} onClick={(e) => { e.stopPropagation(); onDelete(graph); }} />
-                        )}
-                        {onExport && (
-                            <Button size={"small"} icon={"Share"} onClick={(e) => { e.stopPropagation(); onExport(graph); }}  />
-                        )}
-                    </ButtonGroup>
-                </Space>
-            </div>
-            {expanded && (
-                <Paragraph>
-                    <Space style={{ listStyle: "none", paddingLeft: "1em" }} gap>
-                        {(graph.nodes as GraphNode[]).map((node) => (
-                            <GraphNodeTreeNode key={node.id} node={node} ancestry={[...ancestry, graph]} onSelect={onSelect} onDelete={onDelete} topGraphNames={topGraphNames} onExport={onExport} />
-                        ))}
-                    </Space>
-                </Paragraph>
-            )}
-        </>
-    );
+	return (
+		<>
+			<div
+				onClick={(e: any) => {
+					e.stopPropagation();
+					onSelect(graph, ancestry);
+				}}
+				style={{ width: "100%" }}
+			>
+				<Space
+					className="tree-node graph-node"
+					align={"center"}
+					style={{ fontWeight: "bold", cursor: "pointer" }}
+					wide
+					gap
+					justify={"between"}
+				>
+					<Paragraph>
+            <span onClick={toggleExpanded}>
+              {expanded ? "▼" : "▶"}
+            </span>
+						{graph.graphName} (Nodes: {graph.nodes.length})
+						{missingNodes.length > 0 && (
+							<span style={{ color: "red" }}>
+                {" "}
+								<IconTriangle size={"small"} />
+              </span>
+						)}
+					</Paragraph>
+					<ButtonGroup>
+						{onDelete && (
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									onDelete(graph);
+								}}
+								style={{ marginLeft: 8 }}
+							>
+								Delete
+							</button>
+						)}
+						{onExport && (
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									onExport(graph);
+								}}
+								style={{ marginLeft: 8 }}
+							>
+								Export
+							</button>
+						)}
+					</ButtonGroup>
+				</Space>
+			</div>
+			{expanded && (
+				<Paragraph>
+					<Space style={{ listStyle: "none", paddingLeft: "1em" }} gap>
+						{(graph.nodes as GraphNode[]).map((node) => (
+							<GraphNodeTreeNode
+								key={node.id}
+								node={node}
+								ancestry={[...ancestry, graph]}
+								onSelect={onSelect}
+								onDelete={onDelete}
+								topGraphNames={topGraphNames}
+								onExport={onExport}
+							/>
+						))}
+					</Space>
+				</Paragraph>
+			)}
+		</>
+	);
 };
 
 interface GraphNodeTreeNodeProps {
@@ -157,80 +199,98 @@ interface GraphNodeTreeNodeProps {
 	topGraphNames: Set<string>;
 }
 
-const GraphNodeTreeNode: React.FC<GraphNodeTreeNodeProps> = ({ node, ancestry, onSelect, onDelete, onExport }) => {
-    const [expanded, setExpanded] = useState(false);
-    const toggleExpanded = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpanded(prev => !prev);
-    };
-    const isSubgraph = node.data.type === "SUBGRAPH" && !!node.data.subgraph;
+const GraphNodeTreeNode: React.FC<GraphNodeTreeNodeProps> = ({
+																 node,
+																 ancestry,
+																 onSelect,
+																 onDelete,
+																 onExport,
+															 }) => {
+	const [expanded, setExpanded] = useState(false);
+	const toggleExpanded = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setExpanded((prev) => !prev);
+	};
+	const isSubgraph = node.data.type === "SUBGRAPH" && !!node.data.subgraph;
 
-    const nodeDef = nodeRegistry[node.data.type] || { inputs: [], outputs: [], optionalOutputs: [] };
-    const requiredOutputs = nodeDef.outputs.filter(output => !nodeDef.optionalOutputs?.includes(output.id));
+	const nodeDef = nodeRegistry[node.data.type] || { inputs: [], outputs: [], optionalOutputs: [] };
+	const requiredOutputs = nodeDef.outputs.filter((output) => !nodeDef.optionalOutputs?.includes(output.id));
 
-    const warnings: string[] = [];
-    if (node.data.prevs.length === 0 && node.data.type !== "START") warnings.push("No incoming connections");
-    if (requiredOutputs.length > 0 && node.data.nexts.length === 0) warnings.push("No outgoing connections");
-    if (node.data.type === "CONDITION" && (!node.data.true_next || !node.data.false_next)) warnings.push("Missing true/false branches");
+	const warnings: string[] = [];
+	if (node.data.prevs.length === 0 && node.data.type !== "START")
+		warnings.push("No incoming connections");
+	if (requiredOutputs.length > 0 && node.data.nexts.length === 0)
+		warnings.push("No outgoing connections");
+	if (node.data.type === "CONDITION" && (!node.data.true_next || !node.data.false_next))
+		warnings.push("Missing true/false branches");
 
-    return (
-        <>
-            <div className="tree-node node" onClick={(e) => { e.stopPropagation(); onSelect(node, ancestry); }} style={{ cursor: "pointer" }}>
-                {isSubgraph && (
-                    <span onClick={toggleExpanded} style={{ marginRight: 4 }}>
-                        {expanded ? "▼" : "▶"}
-                    </span>
-                )}
-                {node.data.name} ({node.data.type})
-                {warnings.length > 0 && (
-                    <span style={{ color: "red" }}> ⚠ {warnings.join(", ")}</span>
-                )}
-                {/* {false && onDelete && (
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(node); }} style={{ marginLeft: 8 }}>
-						Delete
-                    </button>
-                )}*/}
-            </div>
-            {isSubgraph && expanded && (
-                <ul style={{ listStyle: "none", paddingLeft: "1em" }}>
-                    <GraphTreeNode graph={node.data.subgraph!} ancestry={[...ancestry, node.data.subgraph!]} onSelect={onSelect} onDelete={onDelete} onExport={onExport} topGraphNames={new Set()} />
-                </ul>
-            )}
-        </>
-    );
+	return (
+		<>
+			<div
+				className="tree-node node"
+				onClick={(e) => {
+					e.stopPropagation();
+					onSelect(node, ancestry);
+				}}
+				style={{ cursor: "pointer" }}
+			>
+				{isSubgraph && (
+					<span onClick={toggleExpanded} style={{ marginRight: 4 }}>
+            {expanded ? "▼" : "▶"}
+          </span>
+				)}
+				{node.data.name} ({node.data.type})
+				{warnings.length > 0 && (
+					<span style={{ color: "red" }}> ⚠ {warnings.join(", ")}</span>
+				)}
+			</div>
+			{isSubgraph && expanded && (
+				<ul style={{ listStyle: "none", paddingLeft: "1em" }}>
+					<GraphTreeNode
+						graph={node.data.subgraph!}
+						ancestry={[...ancestry, node.data.subgraph!]}
+						onSelect={onSelect}
+						onDelete={onDelete}
+						onExport={onExport}
+						topGraphNames={new Set()}
+					/>
+				</ul>
+			)}
+		</>
+	);
 };
 
 const SubGraphTree: React.FC<SubGraphTreeProps> = ({ graphs, onSelect = () => {}, onDelete, onExport }) => {
-    const [updatedGraphs, setUpdatedGraphs] = useState(graphs);
+	const [updatedGraphs, setUpdatedGraphs] = useState(graphs);
 
-    useEffect(() => {
-        // Reconstruct prevs for all graphs on load
-        const refreshedGraphs = graphs.map((graph) => {
-            getGraphStatus(graph); // This modifies the `prevs` field directly
-            return graph;
-        });
-        setUpdatedGraphs(refreshedGraphs);
-    }, [graphs]);
+	useEffect(() => {
+		// For each graph, recalculate the prevs/nexts from scratch.
+		const refreshedGraphs = graphs.map((graph) => {
+			getGraphStatus(graph); // This resets & recalculates the arrays.
+			return graph;
+		});
+		setUpdatedGraphs(refreshedGraphs);
+	}, [graphs]);
 
-    const topGraphNames = new Set(updatedGraphs.map((g) => g.graphName));
+	const topGraphNames = new Set(updatedGraphs.map((g) => g.graphName));
 
-    return (
-        <div className="subgraph-tree">
-            <Space gap wide>
-                {updatedGraphs.map((graph) => (
-                    <GraphTreeNode
-                        key={graph.graphName}
-                        graph={graph}
-                        ancestry={[]}
-                        onSelect={onSelect}
-                        onDelete={onDelete}
-                        onExport={onExport}
-                        topGraphNames={topGraphNames}
-                    />
-                ))}
-            </Space>
-        </div>
-    );
+	return (
+		<div className="subgraph-tree">
+			<Space gap wide>
+				{updatedGraphs.map((graph) => (
+					<GraphTreeNode
+						key={graph.graphName}
+						graph={graph}
+						ancestry={[]}
+						onSelect={onSelect}
+						onDelete={onDelete}
+						onExport={onExport}
+						topGraphNames={topGraphNames}
+					/>
+				))}
+			</Space>
+		</div>
+	);
 };
 
 export default SubGraphTree;
