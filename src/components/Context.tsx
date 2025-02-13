@@ -186,7 +186,7 @@ export const Context: React.FC = () => {
     function handleSaveSubGraph(graph?: SubGraph) {
         const curGraph = graph || getCurrentGraph();
         const jsonData = subGraphToJson(curGraph);
-        saveJsonToFile(`subgraph_${curGraph.graphName}.json`, jsonData);
+        saveJsonToFile(`${curGraph.graphName}.json`, jsonData);
     }
 
     async function handleLoadGraph() {
@@ -215,7 +215,7 @@ export const Context: React.FC = () => {
 
     function handleSaveGraph() {
         const jsonData = allSubGraphsToJson(subGraphs);
-        saveJsonToFile(`graph_${currentGraphName}.json`, jsonData);
+        saveJsonToFile(`${currentProject?.name}.json`, jsonData);
     }
 
     // Node data changes => we do allow immediate updates from node onBlur or final step

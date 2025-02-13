@@ -119,17 +119,39 @@ export const GraphProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     const handleNodesChange = useCallback((graphName: string, changes: NodeChange[]) => {
-        setSubGraphs((prevGraphs) => {
+        // Filter out ephemeral changes (e.g. "select")
+        console.log("changes", changes);
+        const stableChanges = changes.filter(change => !["select"].includes(change.type));
+        if (stableChanges.length === 0) return;
+
+        setSubGraphs(prevGraphs => {
             return prevGraphs.map(graph => {
-                if(graph.graphName === graphName){
-                    const updatedNodes = applyNodeChanges(changes, graph.nodes);
-                    return { ...graph, nodes: updatedNodes };
+                if (graph.graphName === graphName) {
+                    // 1) Apply stable node changes using the provided applyNodeChanges
+                    const updatedNodes = applyNodeChanges(stableChanges, graph.nodes);
+
+                    // 2) Recalculate "prevs" and "nexts" for every node from current edges
+                    const recalculatedNodes = updatedNodes.map(node => {
+                        //const freshPrevs = getPredecessors(node.id, graph.edges);
+                        //const freshNexts = getSuccessors(node.id, graph.edges);
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                             //   prevs: freshPrevs,
+                              //  nexts: freshNexts,
+                            },
+                        };
+                    });
+
+                    return { ...graph, nodes: recalculatedNodes };
                 }
                 return graph;
-            })
-        })
+            });
+        });
     }, []);
-    
+
+
     const handleEdgesChange = useCallback((graphName: string, changes: EdgeChange[]) => {
         setSubGraphs((prevGraphs) => {
             return prevGraphs.map(graph => {
