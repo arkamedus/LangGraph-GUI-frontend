@@ -4,54 +4,51 @@ import { useState, useEffect, useRef } from 'react';
 import { useGraph } from '../Graph/GraphContext';
 import { allSubGraphsToJson } from '../Graph/JsonUtil';
 import ConfigManager from '../utils/ConfigManager';
+import { Button, ButtonGroup, Paragraph } from "oakd";
 
 interface RunWindowProps {
     onClose: () => void;
+    // New callback prop: when a message contains a "graph" parameter,
+    // this callback is invoked with the graph name and the full message.
+    onGraphMessage?: (graph: string, message: any) => void;
 }
 
-
-function RunWindow({ onClose }: RunWindowProps) {
+function RunWindow({ onClose, onGraphMessage }: RunWindowProps) {
     const [responseMessage, setResponseMessage] = useState('');
     const [isRunning, setIsRunning] = useState(false);
     const { username, llmModel, apiKey } = ConfigManager.getSettings();
     const { subGraphs } = useGraph();
     const isPollingRef = useRef(false);
+    const outputRef = useRef<HTMLDivElement>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
 
     const SERVER_URL = import.meta.env.VITE_BACKEND_URL;
 
     const uploadGraphData = async () => {
         try {
             const flowData = allSubGraphsToJson(subGraphs);
-
             if (!username) {
                 throw new Error("Username not available to upload graph data.");
             }
-
             const jsonString = JSON.stringify(flowData, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
             const graphFile = new File([blob], 'graph.json');
 
-
             const formData = new FormData();
             formData.append('files', graphFile);
-
 
             const response = await fetch(`${SERVER_URL}/upload/${encodeURIComponent(username)}`, {
                 method: 'POST',
                 body: formData,
             });
 
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error('Failed to upload graph data: ' + errorData.error);
             }
 
-
-            console.log('Graph data successfully uploaded to server.\n');
+            console.log('Graph data successfully uploaded to server.');
             setResponseMessage(prev => prev + '\nGraph data successfully uploaded to server.\n');
-
-
         } catch (error: unknown) {
             let errorMessage = "An unknown error occurred";
             if (error instanceof Error) {
@@ -63,13 +60,10 @@ function RunWindow({ onClose }: RunWindowProps) {
         }
     };
 
-
-
     const handleRun = async () => {
         if (isRunning) return;
         setIsRunning(true);
         setResponseMessage('');
-
 
         try {
             await uploadGraphData();
@@ -89,7 +83,6 @@ function RunWindow({ onClose }: RunWindowProps) {
                 }),
             });
 
-
             if (!response.body) {
                 throw new Error('ReadableStream not yet supported in this browser.');
             }
@@ -98,25 +91,43 @@ function RunWindow({ onClose }: RunWindowProps) {
             const decoder = new TextDecoder();
             let done = false;
 
-
             while (!done) {
                 const { value, done: streamDone } = await reader.read();
                 done = streamDone;
                 if (value) {
                     const chunk = decoder.decode(value, { stream: !done });
-                    console.log("Received chunk:", chunk);
-                    try{
-                        const parsed = JSON.parse(chunk.replace("data: ", "").trim());
-                        if (parsed.status){
-                            setIsRunning(false)
+                    // Split the chunk into individual stdout lines.
+                    const lines = chunk.split("\n");
+                    lines.forEach((line: string) => {
+                        // Remove any leading/trailing whitespace.
+                        const trimmed = line.trim();
+                        if (!trimmed) return;
+                        // Remove the "data: STDOUT:" prefix if present.
+                        const jsonPart = trimmed.replace("data: STDOUT: ", "");
+                        try {
+                            const parsed = JSON.parse(jsonPart);
+                            // If the message contains a "graph" parameter, invoke the callback.
+                            if (parsed.graph && onGraphMessage) {
+                                onGraphMessage(parsed.graph, parsed);
+                            }
+                        } catch (error) {
+                            console.error("Error parsing stdout chunk:", error);
                         }
-                    }catch(e:any){
-                        console.error(e);
-                    }
+                    });
+                    // Append raw chunk to our output.
                     setResponseMessage(prev => prev + chunk);
+                    // Optionally, check if the parsed message signals completion.
+                    try {
+                        const parsed = JSON.parse(chunk.replace("data: ", "").trim());
+                        if (parsed.status) {
+                            setIsRunning(false);
+                        }
+                    } catch (error) {
+                        // Ignore parsing errors for non-JSON chunks.
+                    }
                 }
             }
-        }  catch (error: unknown) {
+        } catch (error: unknown) {
             let errorMessage = "An unknown error occurred";
             if (error instanceof Error) {
                 errorMessage = error.message;
@@ -125,13 +136,12 @@ function RunWindow({ onClose }: RunWindowProps) {
             setResponseMessage(prev => prev + '\nError: ' + errorMessage);
             alert('Error: ' + errorMessage);
             setIsRunning(false);
-        }  finally {
-            if(isPollingRef.current){
+        } finally {
+            if (isPollingRef.current) {
                 setIsRunning(false);
             }
         }
     };
-
 
     useEffect(() => {
         isPollingRef.current = true;
@@ -140,7 +150,6 @@ function RunWindow({ onClose }: RunWindowProps) {
                 if (!username) {
                     throw new Error("Username not available to check status.");
                 }
-
                 const response = await fetch(`${SERVER_URL}/status/${encodeURIComponent(username)}`, {
                     method: 'GET',
                 });
@@ -151,48 +160,57 @@ function RunWindow({ onClose }: RunWindowProps) {
             }
         };
         const interval = setInterval(checkStatus, 2000);
-
-
         return () => {
             isPollingRef.current = false;
             clearInterval(interval);
         };
     }, [username, SERVER_URL]);
 
+    // Auto-scroll output log when responseMessage updates
+    useEffect(() => {
+        if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [responseMessage]);
 
     const handleLeave = async () => {
         onClose();
     };
 
+    const handleClear = async () => {
+        setResponseMessage("");
+    };
 
     return (
-        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-1000">
-            <div className="bg-white p-5 rounded shadow-md w-4/5 h-4/5 flex flex-col">
-                <h2 className="text-lg font-bold mb-4">Run Script</h2>
-                <div className="flex mb-4 justify-end">
-                    <button
-                        className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2 ${isRunning ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : ''}`}
+        <div style={{ maxHeight: "400px", height: "100%" }} className="oakd standardized-reset standardized-text">
+            <div>
+                <ButtonGroup>
+                    <Button
+                        icon={isRunning ? "Spinner" : "Angle"}
+                        type="primary"
                         onClick={handleRun}
                         disabled={isRunning}
                     >
-                        Run
-                    </button>
-                    <button
-                        className={`bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded mr-2 ${isRunning ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : ''}`}
-                        onClick={handleLeave}
-                        disabled={isRunning}
+                        <Paragraph>Run Graph</Paragraph>
+                    </Button>
+                    <Button
+                        onClick={handleClear}
+                        type="warning"
+                        disabled={responseMessage === ""}
                     >
-                        Leave
-                    </button>
-                </div>
-                <div className="flex-1 overflow-y-auto bg-gray-100 p-2 rounded mt-4">
-                    {/* ADDED TEXT-BLACK HERE */}
-                    <pre className="text-left whitespace-pre-wrap text-black">{responseMessage}</pre>
+                        Clear Output
+                    </Button>
+                </ButtonGroup>
+                <div
+                    ref={outputRef}
+                    style={{ maxHeight: "300px", height: isRunning ? "100%" : "auto", overflowY: "scroll" }}
+                >
+                    {responseMessage && <pre>{responseMessage}</pre>}
+                    <div ref={bottomRef} />
                 </div>
             </div>
         </div>
     );
 }
-
 
 export default RunWindow;

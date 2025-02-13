@@ -517,10 +517,14 @@ export const Context: React.FC = () => {
                                 )}
                             </DebugLayer>
                         </Content>
+
                     </ContentRow>
+                    {isRunWindowOpen && <Content><RunWindow onGraphMessage={()=>{
+
+                    }} onClose={() => setIsRunWindowOpen(false)}/></Content>}
+
                 </>
             )}
-            {isRunWindowOpen && <RunWindow onClose={() => setIsRunWindowOpen(false)}/>}
             {isConfigWindowOpen && <ConfigWindow onClose={() => setIsConfigWindowOpen(false)}/>}
         </Page>
     );
