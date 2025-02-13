@@ -1,6 +1,6 @@
 # reactflow-ts
 
-![preview](./asset/preview.png)
+![preview](./asset/preview.gif)
 
 ## Dev 
 * compile
