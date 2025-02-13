@@ -110,8 +110,8 @@ function RunWindow({ onClose }: RunWindowProps) {
                         if (parsed.status){
                             setIsRunning(false)
                         }
-                    }catch(e){
-
+                    }catch(e:any){
+                        console.error(e);
                     }
                     setResponseMessage(prev => prev + chunk);
                 }
@@ -157,7 +157,7 @@ function RunWindow({ onClose }: RunWindowProps) {
             isPollingRef.current = false;
             clearInterval(interval);
         };
-    }, [username]);
+    }, [username, SERVER_URL]);
 
 
     const handleLeave = async () => {

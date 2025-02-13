@@ -1,14 +1,22 @@
 // Graph/GraphPanel.tsx
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useGraph } from './GraphContext';
+import React, {useState, useRef, useEffect} from 'react';
+import {useGraph} from './GraphContext';
 import './GraphPanel.css';
-import { allSubGraphsToJson, subGraphToJson, jsonToSubGraphs, jsonToSubGraph, JsonSubGraph } from './JsonUtil';
-import { saveJsonToFile, loadJsonFromFile } from '../utils/JsonIO';
-import { SubGraph } from './GraphContext';
+import {allSubGraphsToJson, subGraphToJson, jsonToSubGraphs, jsonToSubGraph, JsonSubGraph} from './JsonUtil';
+import {saveJsonToFile, loadJsonFromFile} from '../utils/JsonIO';
+import {SubGraph} from './GraphContext';
 
 const GraphPanel: React.FC = () => {
-    const { subGraphs, currentGraphName, addSubGraph, removeSubGraph, setCurrentGraphName, updateSubGraph, getCurrentGraph } = useGraph(); // Include getCurrentGraph
+    const {
+        subGraphs,
+        currentGraphName,
+        addSubGraph,
+        removeSubGraph,
+        setCurrentGraphName,
+        updateSubGraph,
+        getCurrentGraph
+    } = useGraph(); // Include getCurrentGraph
     const [isGraphMenuOpen, setIsGraphMenuOpen] = useState(false);
     const [isSubGraphMenuOpen, setIsSubGraphMenuOpen] = useState(false);
     const graphMenuRef = useRef<HTMLDivElement>(null);
@@ -26,7 +34,7 @@ const GraphPanel: React.FC = () => {
         const newGraphName = prompt("Enter a new graph name:");
         if (newGraphName && currentGraphName !== "root") {
             const currentGraph = subGraphs.find(graph => graph.graphName === currentGraphName)
-            if(currentGraph){
+            if (currentGraph) {
                 updateSubGraph(currentGraphName, {...currentGraph, graphName: newGraphName})
             }
         }
@@ -56,16 +64,16 @@ const GraphPanel: React.FC = () => {
     const handleLoadGraph = async () => {
         try {
             const jsonData = await loadJsonFromFile();
-            if(jsonData){
+            if (jsonData) {
                 const loadedSubGraphs: SubGraph[] = jsonToSubGraphs(jsonData);
 
                 //Clear subgraphs first
                 subGraphs.forEach(graph => {
-                    if(graph.graphName !== 'root') removeSubGraph(graph.graphName)
+                    if (graph.graphName !== 'root') removeSubGraph(graph.graphName)
                 })
                 //Then load new subgraphs
-                loadedSubGraphs.forEach(subGraph => updateSubGraph(subGraph.graphName,subGraph))
-                
+                loadedSubGraphs.forEach(subGraph => updateSubGraph(subGraph.graphName, subGraph))
+
                 alert('Graph loaded successfully!');
             }
 
@@ -89,12 +97,12 @@ const GraphPanel: React.FC = () => {
             if (jsonData) {
 
                 // Make sure jsonData is JsonSubGraph
-                if(!jsonData.name || !jsonData.nodes || !jsonData.serial_number){
+                if (!jsonData.name || !jsonData.nodes || !jsonData.serial_number) {
                     throw new Error("Invalid Json Format: must be JsonSubGraph")
                 }
-                 
+
                 const loadedSubGraph: SubGraph = jsonToSubGraph(jsonData as JsonSubGraph);
-                
+
                 updateSubGraph(loadedSubGraph.graphName, loadedSubGraph);
 
                 alert('Subgraph loaded successfully!');
@@ -130,7 +138,7 @@ const GraphPanel: React.FC = () => {
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (graphMenuRef.current && !graphMenuRef.current.contains(event.target as Node)
-                && subGraphMenuRef.current && !subGraphMenuRef.current.contains(event.target as Node)
+				&& subGraphMenuRef.current && !subGraphMenuRef.current.contains(event.target as Node)
             ) {
                 closeMenus();
             }
@@ -141,30 +149,35 @@ const GraphPanel: React.FC = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [graphMenuRef,subGraphMenuRef]);
+    }, [graphMenuRef, subGraphMenuRef]);
 
 
     return (
         <nav className="p-2 z-20 flex items-center justify-center">
 
             <div className="relative mr-2" ref={graphMenuRef}>
-                <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2 rounded inline-flex items-center"
+                <button
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2 rounded inline-flex items-center"
                     onClick={toggleGraphMenu}>
-                    Graph
-                    <svg className="fill-current h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+					Graph
+                    <svg className="fill-current h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
                 </button>
                 {isGraphMenuOpen && (
                     <div className="absolute left-0 mt-1 dropdown-menu z-10">
                         <button className="block px-4 py-2 w-full text-left" onClick={handleNewGraph}>New Graph</button>
-                        <button className="block px-4 py-2 w-full text-left" onClick={handleLoadGraph}>Load Graph</button>
-                        <button className="block px-4 py-2 w-full text-left" onClick={handleSaveGraph}>Save Graph</button>
+                        <button className="block px-4 py-2 w-full text-left" onClick={handleLoadGraph}>Load Graph
+                        </button>
+                        <button className="block px-4 py-2 w-full text-left" onClick={handleSaveGraph}>Save Graph
+                        </button>
                     </div>
                 )}
             </div>
 
 
             <div className="mr-2">
-           SubGraph:
+				SubGraph:
                 <select
                     className="ml-2 py-0 border rounded dropdown-menu"
                     value={currentGraphName}
@@ -191,18 +204,29 @@ const GraphPanel: React.FC = () => {
                     className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-2 rounded inline-flex items-center"
                     onClick={toggleSubGraphMenu}
                 >
-                     ...
-                    <svg className="fill-current h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+					...
+                    <svg className="fill-current h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
                 </button>
                 {isSubGraphMenuOpen && (
                     <div className="absolute left-0 mt-1 dropdown-menu z-10">
-                        <button className="block px-4 py-2 w-full text-left" onClick={handleAddGraph}>Add Subgraph</button>
-                        <button className="block px-4 py-2 w-full text-left" onClick={handleLoadSubGraph}>Load Subgraph</button>
-                        <button className="block px-4 py-2 w-full text-left" onClick={handleSaveSubGraph}>Save Subgraph</button>
+                        <button className="block px-4 py-2 w-full text-left" onClick={handleAddGraph}>Add Subgraph
+                        </button>
+                        <button className="block px-4 py-2 w-full text-left" onClick={handleLoadSubGraph}>Load
+							Subgraph
+                        </button>
+                        <button className="block px-4 py-2 w-full text-left" onClick={handleSaveSubGraph}>Save
+							Subgraph
+                        </button>
                         {currentGraphName !== "root" && (
                             <>
-                                <button className="block px-4 py-2 w-full text-left" onClick={handleRenameGraph}>Rename Subgraph</button>
-                                <button className="block px-4 py-2 w-full text-left" onClick={handleRemoveGraph}>Remove Subgraph</button>
+                                <button className="block px-4 py-2 w-full text-left" onClick={handleRenameGraph}>Rename
+									Subgraph
+                                </button>
+                                <button className="block px-4 py-2 w-full text-left" onClick={handleRemoveGraph}>Remove
+									Subgraph
+                                </button>
                             </>
                         )}
                     </div>

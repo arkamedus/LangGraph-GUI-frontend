@@ -1,5 +1,7 @@
 // NodeData.ts
 
+import {SubGraph} from "./GraphContext.tsx";
+
 export interface ReactFlowNodeEXT {
     type: string;
     name?: string | undefined;
@@ -18,6 +20,7 @@ export interface ReactNodeProps {
     height: number;
     position: { x: number, y: number }
     data: ReactFlowNodeEXT;
+    subGraph: SubGraph;
     onNodeDataChange?: (id: string, newData: ReactFlowNodeEXT) => void;
 }
 
@@ -40,7 +43,7 @@ export interface JsonNodeData {
 }
 
 
-export const JsonToReactNode = (jsonData: JsonNodeData, position?: { x: number, y: number }): ReactNodeProps => {
+export const JsonToReactNode = (jsonData: JsonNodeData, subGraph:SubGraph, position?: { x: number, y: number }): ReactNodeProps => {
     const { uniq_id, ext, ...rest } = jsonData;
 
     const reactNodeData: ReactFlowNodeEXT = {
@@ -65,6 +68,7 @@ export const JsonToReactNode = (jsonData: JsonNodeData, position?: { x: number, 
             y: ext?.pos_y || 0 
         },
         data: reactNodeData,
+        subGraph
     };
 };
 
