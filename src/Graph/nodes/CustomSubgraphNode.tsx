@@ -1,18 +1,19 @@
 import React from 'react';
 import { CustomNodeRenderProps } from '../CustomNodeTypes';
 
-export const CustomSubgraphNode: React.FC<CustomNodeRenderProps> = ({ data, onChange }) => {
+export const CustomSubgraphNode: React.FC<CustomNodeRenderProps> = ({ data, onChange, onBlur }) => {
 	const handleFieldChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) => {
 		onChange(field, e.target.value);
 	};
 
 	return (
-		<div>
+		<div className={"node_container"}>
 			{/* Name */}
 			<label className="block text-xs">Name (subgraph ref):</label>
 			<input
 				value={data.name || ""}
 				onChange={handleFieldChange("name")}
+				onBlur={onBlur}
 				className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none mb-2"
 			/>
 
@@ -21,6 +22,7 @@ export const CustomSubgraphNode: React.FC<CustomNodeRenderProps> = ({ data, onCh
 			<textarea
 				value={data.description || ""}
 				onChange={handleFieldChange("description")}
+				onBlur={onBlur}
 				className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
 				style={{ minHeight: 80 }}
 			/>

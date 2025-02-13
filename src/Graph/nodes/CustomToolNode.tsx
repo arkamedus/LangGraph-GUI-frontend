@@ -1,15 +1,15 @@
 import React from 'react';
 import {CustomNodeRenderProps} from '../CustomNodeTypes';
-import {Content, ContentRow} from "oakd";
+import {Content, ContentRow, Page} from "oakd";
 
-export const CustomToolNode: React.FC<CustomNodeRenderProps> = ({data, onChange}) => {
+export const CustomToolNode: React.FC<CustomNodeRenderProps> = ({data, onChange, onBlur}) => {
 	const handleFieldChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 		onChange(field, e.target.value);
 	};
 
 	return (
-		<>
-			<Content>
+		<Page style={{height:"100%"}} className={"pad-v"}>
+			<Content className={"node_container"}>
 				<label className="block text-xs">Description:</label>
 			</Content>
 			<ContentRow>
@@ -17,12 +17,13 @@ export const CustomToolNode: React.FC<CustomNodeRenderProps> = ({data, onChange}
 			<textarea
 				value={data.description || ""}
 				onChange={handleFieldChange("description")}
-				className="nodrag w-full bg-white border border-gray-300 rounded focus:outline-none"
-				style={{minHeight: 80, height: "100%"}}
+				onBlur={onBlur}
+				className="node_container_input"
+				style={{minHeight: 80, height: "100%", width:"100%", whiteSpace:"nowrap"}}
 			/>
 
 
 			</ContentRow>
-		</>
+		</Page>
 	);
 };

@@ -1,6 +1,6 @@
 // CustomNodeTypes.ts
 import React from 'react';
-import { ReactFlowNodeEXT } from "../Graph/NodeData.ts";
+import { ReactFlowNodeEXT } from "./NodeData";
 
 export interface CustomNodePort {
 	id: string;
@@ -12,7 +12,7 @@ export interface CustomNodePort {
 export interface CustomNodeRenderProps {
 	data: ReactFlowNodeEXT;
 	onChange: (field: string, value: any) => void;
-	onBlur: (field: string, value: any) => void;
+	onBlur: () => void;
 }
 
 export interface CustomNodeDefinition {

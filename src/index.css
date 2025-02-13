@@ -76,3 +76,19 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+textarea {
+  border: 1px solid var(--oakd-default-border);
+  padding: var(--leading);
+}
+
+.node_container {
+  padding: 0 42px;
+}
+.node_container_input {
+  margin: 0 42px;
+}
+
+.pad-v {
+  padding: var(--leading) 0 calc( var(--leading) * 2) 0;
+}

@@ -364,12 +364,14 @@ export const Context: React.FC = () => {
 
 					<ContentRow>
 						{sidebarOpen && (
-							<Content style={{ maxWidth: "320px" }}>
-								<Space direction="vertical" gap>
+							<Content style={{display: sidebarOpen ? "block" : "none",width:"100%", maxWidth: "320px", paddingLeft:0}} pad={"horizontal"}>
+								<Page style={{width:"100%", height:"100%"}} gap >
+									<Content grow>
 									<Card pad style={{ width: "100%", height: "100%" }}>
 										<SubGraphTree graphs={subGraphs} onSelect={handleSelectItem} />
 									</Card>
-									<Space justify="stretch">
+									</Content>
+									<Content><Space justify="stretch">
 										<ButtonGroup>
 											<Button icon="Plus" size="small" onClick={handleAddGraph}>
 												Add SubGraph
@@ -378,16 +380,17 @@ export const Context: React.FC = () => {
 												Import SubGraph
 											</Button>
 										</ButtonGroup>
-									</Space>
-									<Card pad style={{ background: "#eee" }}>
+									</Space></Content>
+									<Content><Card pad style={{ background: "#eee" }}>
                     <textarea
-						style={{ display: "block", fontSize: "6pt", width: "100%", fontFamily: "monospace" }}
+						style={{ display: "block", fontSize: "6pt", width: "100%", fontFamily: "monospace", background:"none" }}
 						rows={2}
 					>
                       {JSON.stringify(subGraphs)}
                     </textarea>
-									</Card>
-								</Space>
+									</Card></Content>
+
+								</Page>
 							</Content>
 						)}
 
