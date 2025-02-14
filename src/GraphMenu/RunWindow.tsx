@@ -38,8 +38,8 @@ class ResponseMessage implements IResponseMessage{
 
 function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowProps) {
 	const [responseMessages, setResponseMessages] = useState<ResponseMessage[]>([]);
-	//const [cachedState, setCachedState] = useState<ExecutionState>(executionState);
 	const [isRunning, setIsRunning] = useState(false);
+	//const [cachedGraphs, setCachedGraphs] = useState(false);
 	const { username, llmModel, apiKey } = ConfigManager.getSettings();
 	const isPollingRef = useRef(false);
 	const outputRef = useRef<HTMLDivElement>(null);
@@ -229,6 +229,7 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 	return (
 		<div style={{ height: "100%" }} className="oakd standardized-reset standardized-text">
 			<Space direction={"vertical"} gap>
+				<Paragraph></Paragraph>
 				<ButtonGroup>
 					<Button
 						icon={isRunning ? "Spinner" : "Angle"}

@@ -547,7 +547,7 @@ export const Context: React.FC = () => {
 					<Content>
 						<RunWindow
 							//executionState={executionState}
-							subGraphs={currentProject.graphs}
+							subGraphs={updatedGraphs}
 							onGraphMessage={(graph, message) => {
 								// When a message comes in from RunWindow that includes a "graph" parameter,
 								// update the corresponding node's data in that subgraph.

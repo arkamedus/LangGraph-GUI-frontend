@@ -35,8 +35,9 @@ export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
     TOOL: {
         type: 'TOOL',
         label: 'Tool Node',
-        inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
-        outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
+        inputs: [],
+        outputs: [],
+      //  optionalOutputs: ["next","prev"],
         render: CustomToolNode,
     },
     CONDITION: {
@@ -52,8 +53,8 @@ export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
     INFO: {
         type: 'INFO',
         label: 'Info Node',
-        inputs: [{ id: 'prev', type: 'input', position: 'left', label: 'Prev' }],
-        outputs: [],
+        inputs: [],
+        outputs: [{ id: 'next', type: 'output', position: 'left', label: 'Prev' }],
         render: CustomInfoNode,
     },
     SUBGRAPH: {

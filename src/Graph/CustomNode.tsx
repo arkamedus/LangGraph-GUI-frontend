@@ -136,12 +136,14 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                     style[position] = 0;
                 }
 
+                const handleId= port.id;//`${subGraph.graphName}-${nodeId}-${position}-${port.id}`;
+
                 return (
-                    <div key={`${subGraph.graphName}-${nodeId}-${position}-${port.id}`} style={style}>
+                    <div key={handleId} style={style}>
                         <Handle
                             type={type}
                             position={positionFromString(position as any)}
-                            id={`${subGraph.graphName}-${nodeId}-${position}-${port.id}`}
+                            id={handleId}
                             style={{ ...baseHandleStyle }}
                         />
                         <Paragraph style={{ marginLeft: "8px", marginRight: "8px" }}>
@@ -173,6 +175,9 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             className={["custom-node-container oakd card execution__node ",data.__EXECUTION?"node__active":undefined].filter(Boolean).join("")}
             style={{width, height, position: 'relative', minWidth: "200px", minHeight: "45px"}}
         >
+            <NodeResizeControl minWidth={200} minHeight={45}>
+                <IconTriangle size={"small"}/>
+            </NodeResizeControl>
             {/* Render input handles */}
             {renderHandles(nodeDef.inputs, 'target', id)}
             {/* Render output handles */}
@@ -184,9 +189,6 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                 {/* Call the custom render function – each custom component now handles its own fields */}
                 {nodeDef.render({data: localData, onChange: handleChange, onBlur: handleBlur, subGraph:subGraph })}
             </Page>
-            <NodeResizeControl minWidth={200} minHeight={45}>
-                <IconTriangle size={"small"}/>
-            </NodeResizeControl>
         </div>
     );
 };
