@@ -6,7 +6,7 @@ import { Button, ButtonGroup, Paragraph, Space } from "oakd";
 import {convertUTCToLocalDatetime} from "../utils/DateTime.ts";
 
 interface RunWindowProps {
-	onClose: () => void;
+	onClose?: () => void;
 	onClear: () => void;
 	onGraphMessage?: (graph: string, message: any) => void;
 	subGraphs: SubGraph[];
@@ -218,7 +218,7 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 //		setCachedState(executionState);
 //	}, [executionState]);
 
-	const handleLeave = () => onClose();
+	//const handleLeave = () => {if (onClose){onClose();}}
 	const handleClear = () => {
 		setResponseMessages([]);
 		onClear();

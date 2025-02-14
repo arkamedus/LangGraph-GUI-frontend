@@ -30,7 +30,8 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
     const [localData, setLocalData] = useState<ReactFlowNodeEXT>(data);
     const dataRef = useRef(data);
     const nodeRef = useRef<HTMLDivElement | null>(null);
-
+    const updateNodeInternals = useUpdateNodeInternals();
+    const [nodeSize, setNodeSize] = useState({ width, height });
 
     useEffect(() => {
         if (data !== dataRef.current) {
@@ -53,25 +54,10 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
         }
     }, [id, localData, data, onNodeDataChange]);
 
-    const generateFieldId = (fieldName: string) => `${id}-${fieldName}`;
-
-    const updateNodeInternals = useUpdateNodeInternals();
-    const [nodeSize, setNodeSize] = useState({ width, height });
-
-    // Measure size only when node is mounted or resized
-    useLayoutEffect(() => {
-        if (nodeRef.current) {
-            const { width, height } = nodeRef.current.getBoundingClientRect();
-            setNodeSize({ width, height });
-            updateNodeInternals(id);
-        }
-    }, [id]);
-
-
+    // Helper to generate unique field IDs (used for the type switch)
+    const generateFieldId = (fieldName: string) => `${subGraph.graphName}-${id}-${fieldName}`;
 
     const nodeTypeSwitch = () => (
-
-
 
         <Select
             id={generateFieldId("type")}
@@ -97,7 +83,32 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     );
 
-    const renderHandles = useCallback((ports: CustomNodePort[], type: 'target' | 'source', nodeId:string) => {
+    // Function to update size and trigger internal updates
+    const updateSize = useCallback(() => {
+        if (nodeRef.current) {
+            const { width, height } = nodeRef.current.getBoundingClientRect();
+            setNodeSize({ width, height });
+            updateNodeInternals(id); // Force update to realign handles
+        }
+    }, [id, updateNodeInternals]);
+
+    // Runs on mount and whenever width/height change
+    useLayoutEffect(updateSize, [id, subGraph, width, height]);
+
+    // Runs when component is re-shown in view
+    useEffect(() => {
+        const observer = new ResizeObserver(() => {
+            updateSize();
+        });
+
+        if (nodeRef.current) {
+            observer.observe(nodeRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [updateSize, id, subGraph]);
+
+    const renderHandles = useCallback((ports: CustomNodePort[], type: 'target' | 'source', nodeId: string) => {
         const groups: Record<string, CustomNodePort[]> = {};
 
         ports.forEach(port => {
@@ -115,24 +126,22 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
                 if (isVertical) {
                     const totalHeight = group.length * handleSize;
-                    const spacing = (nodeSize.height - totalHeight) / (group.length + 1);
+                    const spacing = (height - totalHeight) / (group.length + 1);
                     style.top = spacing * (index + 1) + index * handleSize;
                     style[position] = 0;
                 } else {
                     const totalWidth = group.length * handleSize;
-                    const spacing = (nodeSize.width - totalWidth) / (group.length + 1);
+                    const spacing = (width - totalWidth) / (group.length + 1);
                     style.left = spacing * (index + 1) + index * handleSize;
                     style[position] = 0;
                 }
 
-                const handleId = `${nodeId}-${position}-${port.id}`;
-
                 return (
-                    <div key={handleId} style={style}>
+                    <div key={`${subGraph.graphName}-${nodeId}-${position}-${port.id}`} style={style}>
                         <Handle
                             type={type}
                             position={positionFromString(position as any)}
-                            id={handleId}
+                            id={`${subGraph.graphName}-${nodeId}-${position}-${port.id}`}
                             style={{ ...baseHandleStyle }}
                         />
                         <Paragraph style={{ marginLeft: "8px", marginRight: "8px" }}>
@@ -142,8 +151,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                 );
             });
         });
-    }, []);
-
+    }, [id, subGraph, nodeSize]);
 
     const nodeDef: CustomNodeDefinition =
         nodeRegistry[localData.type] || {
@@ -160,6 +168,7 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     return (
         <div
+            key={`${subGraph.graphName}-${id}`}
             ref={nodeRef}
             className={["custom-node-container oakd card execution__node ",data.__EXECUTION?"node__active":undefined].filter(Boolean).join("")}
             style={{width, height, position: 'relative', minWidth: "200px", minHeight: "45px"}}

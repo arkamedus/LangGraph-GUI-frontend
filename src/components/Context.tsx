@@ -49,7 +49,6 @@ interface Project {
 export const Context: React.FC = () => {
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [currentProject, setCurrentProject] = useState<Project | null>(null);
-	const [isRunWindowOpen, setIsRunWindowOpen] = useState(false);
 	const [isConfigWindowOpen, setIsConfigWindowOpen] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
@@ -467,6 +466,7 @@ export const Context: React.FC = () => {
 								}
 							>
 								<ReactFlow
+
 									nodes={currentGraph.nodes}
 									edges={currentGraph.edges}
 									{...reactFlowProps}
@@ -573,7 +573,6 @@ export const Context: React.FC = () => {
 							onClear={() => setExecutionState({
 								graph: "root", node: "", status: "none"
 							})}
-							onClose={() => setIsRunWindowOpen(false)}
 						/>
 					</Content>
 
