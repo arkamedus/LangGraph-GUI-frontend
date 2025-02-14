@@ -46,8 +46,8 @@ export const useGraphActions = () => {
                     id: newNodeId,
                     type: 'custom',
                     position: newPosition,
-                    width: 150,
-                    height: 200,
+                    width: 250,
+                    height: 250,
                     data: {
                         type: "STEP",
                         name: `Node ${currentGraph().serial_number}`,

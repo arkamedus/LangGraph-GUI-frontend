@@ -107,12 +107,32 @@ textarea {
   background: #ebf6f6;
 }
 
-.execution__container.running .debug-layer {
-    border-color: #ffc963;
+.execution__container .debug-layer {
+    border-color: #545454;
+}
+.execution__container .debug-layer .header > .label {
+  background-color: #d2e7ef;
 }
 
+.execution__container.running .debug-layer {
+    border-color: #8c4803;
+}
 .execution__container.running .debug-layer .header > .label {
-    background-color: #fff3d3;
+    background-color: #fce9d3;
+}
+
+.execution__container.success .debug-layer {
+    border-color: #2a8660;
+}
+.execution__container.success .debug-layer .header > .label {
+    background-color: #bfe5cb;
+}
+
+.execution__container.error .debug-layer {
+    border-color: #7c1f1f;
+}
+.execution__container.error .debug-layer .header > .label {
+    background-color: #eecaca;
 }
 
 .execution__container.running .execution__node {
@@ -158,7 +178,7 @@ textarea {
 
 .terminal .entry.system {
   background-color: #d0d0d0;
-  border-bottom: 1px solid #cecece;
+  border-bottom: 1px solid #b0b0b0;
 }
 
 .terminal .entry.error {

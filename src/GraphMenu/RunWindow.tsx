@@ -3,7 +3,6 @@ import { SubGraph, useGraph } from '../Graph/GraphContext';
 import { allSubGraphsToJson } from '../Graph/JsonUtil';
 import ConfigManager from '../utils/ConfigManager';
 import { Button, ButtonGroup, Paragraph, Space } from "oakd";
-import { ExecutionState } from "../Graph/NodeData.ts";
 import {convertUTCToLocalDatetime} from "../utils/DateTime.ts";
 
 interface RunWindowProps {
@@ -11,10 +10,10 @@ interface RunWindowProps {
 	onClear: () => void;
 	onGraphMessage?: (graph: string, message: any) => void;
 	subGraphs: SubGraph[];
-	executionState: ExecutionState;
+	//executionState: ExecutionState;
 }
 
-type ResponseMessageType = "system" | "graph";
+type ResponseMessageType = "system" | "graph" | "info";
 
 interface IResponseMessage {
 	message: string;
@@ -37,9 +36,9 @@ class ResponseMessage implements IResponseMessage{
 	}
 }
 
-function RunWindow({ onClose, onGraphMessage, subGraphs, onClear, executionState }: RunWindowProps) {
+function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowProps) {
 	const [responseMessages, setResponseMessages] = useState<ResponseMessage[]>([]);
-	const [cachedState, setCachedState] = useState<ExecutionState>(executionState);
+	//const [cachedState, setCachedState] = useState<ExecutionState>(executionState);
 	const [isRunning, setIsRunning] = useState(false);
 	const { username, llmModel, apiKey } = ConfigManager.getSettings();
 	const isPollingRef = useRef(false);
@@ -116,35 +115,56 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear, executionState
 					const chunk = decoder.decode(value, { stream: !done });
 					const lines = chunk.split("\n");
 
+
+					//////
+
 					lines.forEach((line: string) => {
 						const trimmed = line.trim();
 						if (!trimmed) return;
 
+						let jsonPart: string | null = null;
+
+						// Attempt to extract JSON from various formats
+						const jsonMatch = trimmed.match(/\{.*\}$/); // Matches JSON-like content at the end of a line
+						if (jsonMatch) {
+							jsonPart = jsonMatch[0]; // Extract the JSON portion
+						} else {
+							jsonPart = trimmed.replace(/^data: (STDOUT: )?/, "").trim(); // Fallback for raw JSON
+						}
+
+						if (!jsonPart) return;
+
 						try {
-							const parsed = JSON.parse(line.replace("data: ", "").trim());
+							const parsed = JSON.parse(jsonPart);
+							//console.log("A",parsed);
+
+							if (parsed.graph && onGraphMessage) {
+								onGraphMessage(parsed.graph, parsed);
+								setResponseMessages(prev => [...prev, new ResponseMessage({ message: jsonPart,type:"graph" })]);
+
+							}
 
 							if (parsed.status) {
-								console.warn(parsed);
+								//console.warn(parsed);
 								setResponseMessages(prev => [...prev, new ResponseMessage({ message: parsed.message||"--no message provided--",type:"system", error:parsed.status==="error" })]);
-								if (onGraphMessage) onGraphMessage('root', { __EXECUTION: parsed.status });
-								if (parsed.status === "success" || parsed.status === "error") setIsRunning(false);
-							} else if (parsed.stream) {
-								const jsonPart = parsed.message;
-								try {
-									const parsedMessage = JSON.parse(jsonPart);
-									console.log(parsedMessage);
-									if (parsedMessage.graph && onGraphMessage) {
-										onGraphMessage('root', parsedMessage);
-									}
-									setResponseMessages(prev => [...prev, new ResponseMessage({ message: jsonPart,type:"graph" })]);
-								} catch (error) {
-									console.error("Error parsing stdout chunk:", error);
+
+								if (onGraphMessage) {
+									onGraphMessage("root", { __EXECUTION: typeof parsed.status === "string"?parsed.status:(parsed.status?"running":"none") });
+								}
+								if (parsed.status === "success" || parsed.status === "error") {
+									setIsRunning(false);
 								}
 							}
 						} catch (error) {
-							console.error("Invalid JSON:", line);
+							console.error("Error parsing JSON:", error, "Original Line:", line);
+							// Ignore non-JSON lines
+							setResponseMessages(prev => [...prev, new ResponseMessage({ message: line,type:"info" })]);
 						}
 					});
+
+
+
+
 				}
 			}
 		} catch (error: unknown) {
@@ -194,9 +214,9 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear, executionState
 		}
 	}, [responseMessages]);
 
-	useEffect(() => {
-		setCachedState(executionState);
-	}, [executionState]);
+	//useEffect(() => {
+//		setCachedState(executionState);
+//	}, [executionState]);
 
 	const handleLeave = () => onClose();
 	const handleClear = () => {
@@ -250,9 +270,6 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear, executionState
 						))}
 						<div ref={bottomRef} />
 					</div>
-
-						<textarea style={{maxHeight:"100px", overflowY:"scroll"}} value={JSON.stringify(cachedState)} readOnly />
-
 				</Space>
 			</Space>
 		</div>

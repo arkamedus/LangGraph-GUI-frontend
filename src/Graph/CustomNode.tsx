@@ -1,5 +1,5 @@
 // CustomNode.tsx
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {Handle, Position, NodeResizeControl} from '@xyflow/react';
 import {Content, DebugLayer, IconStar, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
 import {ReactFlowNodeEXT, ReactNodeProps} from "./NodeData";
@@ -80,8 +80,17 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     );
 
-    // Render handles for inputs/outputs
-    const renderHandles = (ports: CustomNodePort[], type: 'target' | 'source') => {
+    const nodeRef = useRef<HTMLDivElement | null>(null);
+    const [nodeSize, setNodeSize] = useState({ width, height });
+
+    useLayoutEffect(() => {
+        if (nodeRef.current) {
+            const { width, height } = nodeRef.current.getBoundingClientRect();
+            setNodeSize({ width, height });
+        }
+    }, []); // Runs once when the node is first mounted
+
+    const renderHandles = (ports: CustomNodePort[], type: 'target' | 'source', nodeId: string) => {
         const groups: Record<string, CustomNodePort[]> = {};
         ports.forEach(port => {
             if (!groups[port.position]) groups[port.position] = [];
@@ -90,8 +99,15 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
         return Object.keys(groups).map(position => {
             const group = groups[position];
+            const isVertical = position === 'left' || position === 'right';
+            const isHorizontal = position === 'top' || position === 'bottom';
+
             return group.map((port, index) => {
-                const style: React.CSSProperties = {position: 'absolute'};
+                const style: React.CSSProperties = {
+                    position: 'absolute',
+                   // transform: 'translate(-50%, -50%)' // Ensure correct positioning
+                };
+
                 if (position === 'left' || position === 'right') {
                     const handleHeight = baseHandleStyle.height;
                     const totalHandlesHeight = group.length * (typeof handleHeight === 'number' ? handleHeight : 14);
@@ -107,15 +123,18 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                     style.left = spacing * (index + 1) + index * (typeof handleWidth === 'number' ? handleWidth : 14);
                     style[position] = 0;
                 }
+
+                const handleId = `${nodeId}-${position}-${port.id}`;
+
                 return (
-                    <div key={port.id} style={style}>
+                    <div key={handleId} style={style}>
                         <Handle
                             type={type}
                             position={positionFromString(position as any)}
-                            id={port.id}
-                            style={baseHandleStyle}
+                            id={handleId}
+                            style={{ ...baseHandleStyle }}
                         />
-                        <Paragraph style={{marginLeft: "8px", marginRight: "8px"}}>
+                        <Paragraph style={{ marginLeft: "8px", marginRight: "8px" }}>
                             <small>{port.label}</small>
                         </Paragraph>
                     </div>
@@ -123,6 +142,9 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             });
         });
     };
+
+
+
 
     const nodeDef: CustomNodeDefinition =
 		nodeRegistry[localData.type] || {
@@ -139,13 +161,14 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     return (
         <div
+            ref={nodeRef}
             className={["custom-node-container oakd card execution__node ",data.__EXECUTION?"node__active":undefined].filter(Boolean).join("")}
             style={{width, height, position: 'relative', minWidth: "200px", minHeight: "45px"}}
         >
             {/* Render input handles */}
-            {renderHandles(nodeDef.inputs, 'target')}
+            {renderHandles(nodeDef.inputs, 'target', id)}
             {/* Render output handles */}
-            {renderHandles(nodeDef.outputs, 'source')}
+            {renderHandles(nodeDef.outputs, 'source', id)}
 
             <Page style={{height: "100%", overflow: "hidden", borderRadius: "inherit"}}>
                 <Content className={"node__header"} pad ><Space gap justify={"between"} wide>{nodeTypeSwitch()} {data.__EXECUTION&&<IconTriangle size={"small"}/>}</Space></Content>

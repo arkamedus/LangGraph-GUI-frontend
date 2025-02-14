@@ -112,7 +112,7 @@ export const Context: React.FC = () => {
 			if (newProject.graphs.length > 0) {
 				setCurrentGraphName(newProject.graphs[0].graphName);
 			}
-
+			centerSubGraph(5);
 
 		},
 		[currentProject, subGraphs, removeSubGraph, updateSubGraph, setCurrentProject, setProjects, setCurrentGraphName]
@@ -213,8 +213,7 @@ export const Context: React.FC = () => {
 			if (loadedSubGraphs.length > 0) {
 				setCurrentGraphName(loadedSubGraphs[0].graphName);
 			}
-			centerSubGraph(5);
-			centerSubGraph(20);
+
 
 		} catch (error) {
 			console.error("Error loading graph:", error);
@@ -432,6 +431,7 @@ export const Context: React.FC = () => {
 										<Card pad>
 											<Paragraph>TODO FILE BROWSER</Paragraph>
 										</Card>
+
 									</Content>
 									<Content><Card pad style={{background: "#eee"}}>
                                         <textarea
@@ -443,7 +443,7 @@ export const Context: React.FC = () => {
 												background: "none"
 											}}
 											rows={2}
-											value={JSON.stringify(updatedGraphs)}
+											value={JSON.stringify(executionState)}
 										/>
 									</Card></Content>
 
@@ -546,14 +546,17 @@ export const Context: React.FC = () => {
 					</ContentRow>
 					<Content>
 						<RunWindow
-							executionState={executionState}
+							//executionState={executionState}
 							subGraphs={currentProject.graphs}
 							onGraphMessage={(graph, message) => {
 								// When a message comes in from RunWindow that includes a "graph" parameter,
 								// update the corresponding node's data in that subgraph.
 								// For example, if the message contains a node uniq_id and additional properties:
 								const {uniq_id, ...data} = message;
+
+
 								if (uniq_id) {
+
 									updateNodeData(graph, uniq_id, {__EXECUTION: data.status});
 									if (data.graph && data) {
 										//console.log(data);
