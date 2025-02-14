@@ -1,6 +1,6 @@
 // CustomNode.tsx
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
-import {Handle, Position, NodeResizeControl} from '@xyflow/react';
+import {Handle, Position, NodeResizeControl, useUpdateNodeInternals} from '@xyflow/react';
 import {Content, DebugLayer, IconStar, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
 import {ReactFlowNodeEXT, ReactNodeProps} from "./NodeData";
 import {CustomNodeDefinition, CustomNodePort} from "./CustomNodeTypes";
@@ -15,20 +15,22 @@ const baseHandleStyle: React.CSSProperties = {
 
 function positionFromString(pos: 'top' | 'bottom' | 'left' | 'right'): Position {
     switch (pos) {
-    case 'top':
-        return Position.Top;
-    case 'bottom':
-        return Position.Bottom;
-    case 'left':
-        return Position.Left;
-    case 'right':
-        return Position.Right;
+        case 'top':
+            return Position.Top;
+        case 'bottom':
+            return Position.Bottom;
+        case 'left':
+            return Position.Left;
+        case 'right':
+            return Position.Right;
     }
 }
 
 const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph, onNodeDataChange}) => {
     const [localData, setLocalData] = useState<ReactFlowNodeEXT>(data);
     const dataRef = useRef(data);
+    const nodeRef = useRef<HTMLDivElement | null>(null);
+
 
     useEffect(() => {
         if (data !== dataRef.current) {
@@ -51,10 +53,25 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
         }
     }, [id, localData, data, onNodeDataChange]);
 
-    // Helper to generate unique field IDs (used for the type switch)
     const generateFieldId = (fieldName: string) => `${id}-${fieldName}`;
 
+    const updateNodeInternals = useUpdateNodeInternals();
+    const [nodeSize, setNodeSize] = useState({ width, height });
+
+    // Measure size only when node is mounted or resized
+    useLayoutEffect(() => {
+        if (nodeRef.current) {
+            const { width, height } = nodeRef.current.getBoundingClientRect();
+            setNodeSize({ width, height });
+            updateNodeInternals(id);
+        }
+    }, [id]);
+
+
+
     const nodeTypeSwitch = () => (
+
+
 
         <Select
             id={generateFieldId("type")}
@@ -80,18 +97,9 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
     );
 
-    const nodeRef = useRef<HTMLDivElement | null>(null);
-    const [nodeSize, setNodeSize] = useState({ width, height });
-
-    useLayoutEffect(() => {
-        if (nodeRef.current) {
-            const { width, height } = nodeRef.current.getBoundingClientRect();
-            setNodeSize({ width, height });
-        }
-    }, []); // Runs once when the node is first mounted
-
-    const renderHandles = (ports: CustomNodePort[], type: 'target' | 'source', nodeId: string) => {
+    const renderHandles = useCallback((ports: CustomNodePort[], type: 'target' | 'source', nodeId:string) => {
         const groups: Record<string, CustomNodePort[]> = {};
+
         ports.forEach(port => {
             if (!groups[port.position]) groups[port.position] = [];
             groups[port.position].push(port);
@@ -99,28 +107,21 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
 
         return Object.keys(groups).map(position => {
             const group = groups[position];
-            const isVertical = position === 'left' || position === 'right';
-            const isHorizontal = position === 'top' || position === 'bottom';
 
             return group.map((port, index) => {
-                const style: React.CSSProperties = {
-                    position: 'absolute',
-                   // transform: 'translate(-50%, -50%)' // Ensure correct positioning
-                };
+                const style: React.CSSProperties = { position: 'absolute' };
+                const isVertical = position === 'left' || position === 'right';
+                const handleSize = typeof baseHandleStyle.width === 'number' ? baseHandleStyle.width : 14;
 
-                if (position === 'left' || position === 'right') {
-                    const handleHeight = baseHandleStyle.height;
-                    const totalHandlesHeight = group.length * (typeof handleHeight === 'number' ? handleHeight : 14);
-                    const availableHeight = height - totalHandlesHeight;
-                    const spacing = availableHeight / (group.length + 1);
-                    style.top = spacing * (index + 1) + index * (typeof handleHeight === 'number' ? handleHeight : 14);
+                if (isVertical) {
+                    const totalHeight = group.length * handleSize;
+                    const spacing = (nodeSize.height - totalHeight) / (group.length + 1);
+                    style.top = spacing * (index + 1) + index * handleSize;
                     style[position] = 0;
-                } else if (position === 'top' || position === 'bottom') {
-                    const handleWidth = baseHandleStyle.width;
-                    const totalHandlesWidth = group.length * (typeof handleWidth === 'number' ? handleWidth : 14);
-                    const availableWidth = width - totalHandlesWidth;
-                    const spacing = availableWidth / (group.length + 1);
-                    style.left = spacing * (index + 1) + index * (typeof handleWidth === 'number' ? handleWidth : 14);
+                } else {
+                    const totalWidth = group.length * handleSize;
+                    const spacing = (nodeSize.width - totalWidth) / (group.length + 1);
+                    style.left = spacing * (index + 1) + index * handleSize;
                     style[position] = 0;
                 }
 
@@ -141,23 +142,21 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
                 );
             });
         });
-    };
-
-
+    }, []);
 
 
     const nodeDef: CustomNodeDefinition =
-		nodeRegistry[localData.type] || {
-		    type: localData.type,
-		    label: localData.type,
-		    inputs: [],
-		    outputs: [],
-		    render: ({data}) => (
-		        <DebugLayer label={data.type || ""}>
-		            <Paragraph>NOT IMPLEMENTED</Paragraph>
-		        </DebugLayer>
-		    ),
-		};
+        nodeRegistry[localData.type] || {
+            type: localData.type,
+            label: localData.type,
+            inputs: [],
+            outputs: [],
+            render: ({data}) => (
+                <DebugLayer label={data.type || ""}>
+                    <Paragraph>NOT IMPLEMENTED</Paragraph>
+                </DebugLayer>
+            ),
+        };
 
     return (
         <div
