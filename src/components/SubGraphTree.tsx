@@ -167,8 +167,10 @@ const GraphNodeTreeNode: React.FC<GraphNodeTreeNodeProps> = ({ node, ancestry, o
 	const nodeDef = nodeRegistry[node.data.type] || { inputs: [], outputs: [], optionalOutputs: [] };
 	const requiredOutputs = nodeDef.outputs.filter(output => !nodeDef.optionalOutputs?.includes(output.id));
 
+	const expectedInputs = nodeDef.inputs;
+
 	const warnings: string[] = [];
-	if (node.data.prevs.length === 0 && node.data.type !== "START") warnings.push("No incoming connections");
+	if (expectedInputs.length > 0 && node.data.prevs.length === 0 && node.data.type !== "START") warnings.push("No incoming connections");
 	if (requiredOutputs.length > 0 && node.data.nexts.length === 0) warnings.push("No outgoing connections");
 	if (node.data.type === "CONDITION" && (!node.data.true_next || !node.data.false_next)) warnings.push("Missing true/false branches");
 

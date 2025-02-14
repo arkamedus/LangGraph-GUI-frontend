@@ -39,7 +39,7 @@ import ConfigWindow from "../GraphMenu/ConfigWindow";
 // Custom Node/Edge
 import CustomEdge from "../Graph/CustomEdge.tsx";
 import CustomNode from "../Graph/CustomNode.tsx";
-import {ExecutionState} from "../Graph/NodeData.ts";
+import {ExecutionNodeStatusType, ExecutionState} from "../Graph/NodeData.ts";
 
 interface Project {
 	name: string;
@@ -84,7 +84,12 @@ export const Context: React.FC = () => {
 
 	const {screenToFlowPosition, setCenter, fitView} = useReactFlow();
 
-	const [executionState, setExecutionState] = useState<ExecutionState>({graph: "root", node: "", status: "none"});
+	const [executionState, setExecutionState] = useState<ExecutionState>({
+		graph: "root",
+		node: "",
+		status: "none",
+		nodes: {}
+	});
 
 
 	// ---------------------------------------------------------------------------
@@ -118,6 +123,7 @@ export const Context: React.FC = () => {
 	);
 
 	const handleBackToProjects = useCallback(() => {
+		resetState();
 		if (!currentProject) {
 			setCurrentProject(null);
 			return;
@@ -220,11 +226,6 @@ export const Context: React.FC = () => {
 		}
 	}
 
-	function handleSaveGraph() {
-		const jsonData = allSubGraphsToJson(subGraphs);
-		saveJsonToFile(`${currentProject?.name}.json`, jsonData);
-	}
-
 	// Node data changes => we do allow immediate updates from node onBlur or final step
 	// (But see below for how we only finalize them on blur in the node component)
 
@@ -242,9 +243,11 @@ export const Context: React.FC = () => {
 	}
 
 	// Center a subgraph
-	function centerSubGraph(delay:number = 5) {
+	function centerSubGraph(delay: number = 5) {
 		console.log('fit');
-		setTimeout(()=>{fitView()}, delay);
+		setTimeout(() => {
+			fitView()
+		}, delay);
 	}
 
 	function handleSelectItem(item: SubGraph | any, ancestry: SubGraph[]) {
@@ -281,6 +284,15 @@ export const Context: React.FC = () => {
 		setContextMenu(null);
 	}, []);
 
+	const resetState = () => {
+		setExecutionState({
+			graph: "root",
+			node: "",
+			status: "",
+			nodes: {}
+		})
+	};
+
 
 	const reactFlowProps = useMemo<ReactFlowProps>(() => ({
 		onContextMenu: (event: React.MouseEvent) => handlePanelContextMenu(event, setContextMenu),
@@ -297,11 +309,16 @@ export const Context: React.FC = () => {
 		},
 	}), [handlePanelContextMenu, handleCloseContextMenu, handleNodesChange, handleEdgesChange, handleEdgeClick, handleAddEdge, currentGraphName, setContextMenu])
 
+	const getExecutionState = useCallback((): ExecutionState => {
+		return executionState;
+	}, [subGraphs, executionState]);
+
 	const nodeTypes = useMemo(() => ({
 		custom: (props: any) => <CustomNode {...props}
+											executionState={getExecutionState()}
 											subGraph={getCurrentGraph()}
 											onNodeDataChange={handleNodeDataChange}/>,
-	}), [handleNodeDataChange]);
+	}), [handleNodeDataChange, getExecutionState]);
 
 	const [updatedGraphs, setUpdatedGraphs] = useState(subGraphs);
 
@@ -314,9 +331,16 @@ export const Context: React.FC = () => {
 		setUpdatedGraphs(refreshedGraphs);
 	}, [subGraphs]);
 
+	function handleSaveGraph() {
+		const jsonData = allSubGraphsToJson(updatedGraphs);
+		saveJsonToFile(`${currentProject?.name}.json`, jsonData);
+	}
+
+
+	const state = JSON.stringify(executionState);
 
 	return (
-			<Page fixed gap className={`oakd content pad execution__container ${executionState.status}`}>
+		<Page fixed gap className={`oakd content pad execution__container ${getExecutionState().status}`}>
 			{!currentProject ? (
 				<>
 					<Content>
@@ -442,7 +466,7 @@ export const Context: React.FC = () => {
 												background: "none"
 											}}
 											rows={2}
-											value={JSON.stringify(executionState)}
+											value={state}
 										/>
 									</Card></Content>
 
@@ -457,10 +481,10 @@ export const Context: React.FC = () => {
 									<Paragraph className="label">
 										<IconApps size="small"/>
 										SubGraph (<strong>{currentGraphName}</strong>)
-										{executionState.status!=="none"&&
-											<>
-											{executionState.status} {executionState.graph} {executionState.node}
-											</>
+										{executionState.status !== "none" &&
+                                            <>
+												{executionState.status} {executionState.graph} {executionState.node}
+                                            </>
 										}
 									</Paragraph>
 								}
@@ -475,7 +499,7 @@ export const Context: React.FC = () => {
 
 								>
 									{/*<MiniMap/>*/}
-									<Background color={executionState.status==="running"?"#666":"#ccc"}/>
+									<Background color={executionState.status === "running" ? "#666" : "#ccc"}/>
 									<Controls/>
 								</ReactFlow>
 
@@ -546,34 +570,67 @@ export const Context: React.FC = () => {
 					</ContentRow>
 					<Content>
 						<RunWindow
-							//executionState={executionState}
+							executionState={executionState}
 							subGraphs={updatedGraphs}
 							onGraphMessage={(graph, message) => {
-								// When a message comes in from RunWindow that includes a "graph" parameter,
-								// update the corresponding node's data in that subgraph.
-								// For example, if the message contains a node uniq_id and additional properties:
 								const {uniq_id, ...data} = message;
 
+								if (data) {
+									setExecutionState(prevState => {
+										// Create a new execution state with the updated node details
 
-								if (uniq_id) {
+										// Construct new execution state
+										const newExecutionState: ExecutionState = {
+											...prevState,
+											graph: data.graph || "root",
+											node: data.node || "",
+											nodes: {...prevState.nodes} || {}
+										};
+										if (uniq_id) {
+											const nodeReference = `${graph}_${uniq_id.toString()}`;
 
-									updateNodeData(graph, uniq_id, {__EXECUTION: data.status});
-									if (data.graph && data) {
-										//console.log(data);
+											// Retrieve the previous status
+											const prevNodeState = prevState.nodes[nodeReference] || {};
+											const prevStatus = prevNodeState.status || "none";
 
-										let d = {graph: data.graph, status:'running'};
-										setExecutionState({...executionState,...d})
-									}
-								}
-								if (data.__EXECUTION) {
-									console.info('UPDATE EXECUTION', data);
-									setExecutionState({...executionState,status:data.__EXECUTION})
+											let newStatus = prevStatus;
+
+											if (data.status) {
+												newStatus = "processing"; // First true -> processing
+											} else if (!data.status && prevStatus === "processing") {
+												newStatus = "done"; // Transition from processing -> done
+											}
+
+											const updatedNodes = {
+												...prevState.nodes,
+												[nodeReference]: {
+													...prevNodeState, // Preserve existing node data
+													status: newStatus,
+												},
+											};
+
+											// @ts-ignore
+											newExecutionState.nodes = updatedNodes;
+										}
+
+
+										// Update execution status if provided
+										if (data.__EXECUTION) {
+											console.warn("a", data);
+											newExecutionState.status = data.__EXECUTION;
+										}
+
+										console.log("Updated execution state:", newExecutionState);
+										return newExecutionState;
+									});
 								}
 							}}
-							onClear={() => setExecutionState({
-								graph: "root", node: "", status: "none"
-							})}
+							onFlush={() => {
+								resetState();
+							}
+							}
 						/>
+
 					</Content>
 
 				</>

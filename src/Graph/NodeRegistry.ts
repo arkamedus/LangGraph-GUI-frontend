@@ -53,8 +53,8 @@ export const nodeRegistry: { [type: string]: CustomNodeDefinition } = {
     INFO: {
         type: 'INFO',
         label: 'Info Node',
-        inputs: [],
-        outputs: [{ id: 'next', type: 'output', position: 'left', label: 'Prev' }],
+        inputs: [{ id: 'prev', type: 'output', position: 'left', label: 'Prev' }],
+        outputs: [{ id: 'next', type: 'output', position: 'right', label: 'Next' }],
         render: CustomInfoNode,
     },
     SUBGRAPH: {

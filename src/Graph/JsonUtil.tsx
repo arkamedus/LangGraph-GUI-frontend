@@ -69,7 +69,7 @@ export const jsonToSubGraph = (json: JsonSubGraph): SubGraph => {
         const nodeData = node.data as any;
 
 
-        if (nodeData.nexts && Array.isArray(nodeData.nexts)) {
+        if (nodeData.nexts && Array.isArray(nodeData.nexts) && nodeData.type !=="CONDITION") {
             nodeData.nexts.forEach((nextId:string) => {
                 const newEdge: Edge = {
                     id: `${node.id}-${nextId}`,

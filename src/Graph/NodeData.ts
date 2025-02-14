@@ -2,10 +2,17 @@
 
 import {SubGraph} from "./GraphContext.tsx";
 
+export type ExecutionNodeStatusType = "none" | "waiting" | "stalled" | "processing" | "error" | "done";
+
+export interface ExecutionNodeStatus {
+    status: ExecutionNodeStatusType;
+}
+
 export interface ExecutionState {
     graph : string;
     node: string;
     status: string;
+    nodes: Record<string, ExecutionNodeStatus>;
 }
 
 export interface ReactFlowNodeEXT {
@@ -28,6 +35,7 @@ export interface ReactNodeProps {
     position: { x: number, y: number }
     data: ReactFlowNodeEXT;
     subGraph: SubGraph;
+    executionState: ExecutionState;
     onNodeDataChange?: (id: string, newData: ReactFlowNodeEXT) => void;
 }
 

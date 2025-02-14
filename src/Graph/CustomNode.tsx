@@ -1,8 +1,8 @@
 // CustomNode.tsx
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {Handle, Position, NodeResizeControl, useUpdateNodeInternals} from '@xyflow/react';
-import {Content, DebugLayer, IconStar, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
-import {ReactFlowNodeEXT, ReactNodeProps} from "./NodeData";
+import {Content, DebugLayer, IconCheck, IconStar, IconTriangle, Page, Paragraph, Select, Space} from "oakd";
+import {ExecutionState, ReactFlowNodeEXT, ReactNodeProps} from "./NodeData";
 import {CustomNodeDefinition, CustomNodePort} from "./CustomNodeTypes";
 import {nodeRegistry} from "./NodeRegistry";
 
@@ -26,9 +26,11 @@ function positionFromString(pos: 'top' | 'bottom' | 'left' | 'right'): Position 
     }
 }
 
-const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph, onNodeDataChange}) => {
+const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph, executionState, onNodeDataChange}) => {
     const [localData, setLocalData] = useState<ReactFlowNodeEXT>(data);
+    const [localExec, setExecData] = useState<ExecutionState>(executionState);
     const dataRef = useRef(data);
+    const statusRef = useRef(executionState);
     const nodeRef = useRef<HTMLDivElement | null>(null);
     const updateNodeInternals = useUpdateNodeInternals();
     const [nodeSize, setNodeSize] = useState({ width, height });
@@ -39,6 +41,14 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             dataRef.current = data;
         }
     }, [data]);
+
+    useEffect(() => {
+        if (executionState !== statusRef.current) {
+            setExecData(executionState);
+            statusRef.current = executionState;
+        }
+    }, [executionState]);
+
 
     // A simple change handler that takes a field and its new value.
     const handleChange = useCallback((field: string, value: any) => {
@@ -168,11 +178,14 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             ),
         };
 
+
+    const exeState = executionState.nodes[`${subGraph.graphName||"root"}_${id}`]?.status||"none";
+
     return (
         <div
             key={`${subGraph.graphName}-${id}`}
             ref={nodeRef}
-            className={["custom-node-container oakd card execution__node ",data.__EXECUTION?"node__active":undefined].filter(Boolean).join("")}
+            className={["custom-node-container oakd card execution__node ",exeState].filter(Boolean).join("")}
             style={{width, height, position: 'relative', minWidth: "200px", minHeight: "45px"}}
         >
             <NodeResizeControl minWidth={200} minHeight={45}>
@@ -184,7 +197,13 @@ const CustomNode: React.FC<ReactNodeProps> = ({id, width, height, data, subGraph
             {renderHandles(nodeDef.outputs, 'source', id)}
 
             <Page style={{height: "100%", overflow: "hidden", borderRadius: "inherit"}}>
-                <Content className={"node__header"} pad ><Space gap justify={"between"} wide>{nodeTypeSwitch()} {data.__EXECUTION&&<IconTriangle size={"small"}/>}</Space></Content>
+                <Content className={"node__header"} pad >
+                    <Space gap justify={"between"} wide>
+                        {nodeTypeSwitch()}
+                        {(exeState==="processing")&&<IconTriangle size={"small"}/>}
+                        {(exeState==="done")&&<IconCheck size={"small"}/>}
+                    </Space>
+                </Content>
 
                 {/* Call the custom render function – each custom component now handles its own fields */}
                 {nodeDef.render({data: localData, onChange: handleChange, onBlur: handleBlur, subGraph:subGraph })}

@@ -4,16 +4,18 @@ import { allSubGraphsToJson } from '../Graph/JsonUtil';
 import ConfigManager from '../utils/ConfigManager';
 import { Button, ButtonGroup, Paragraph, Space } from "oakd";
 import {convertUTCToLocalDatetime} from "../utils/DateTime.ts";
+import {ExecutionState} from "../Graph/NodeData.ts";
 
 interface RunWindowProps {
 	onClose?: () => void;
 	onClear: () => void;
 	onGraphMessage?: (graph: string, message: any) => void;
 	subGraphs: SubGraph[];
-	//executionState: ExecutionState;
+	onFlush: () => void;
+	executionState: ExecutionState;
 }
 
-type ResponseMessageType = "system" | "graph" | "info";
+type ResponseMessageType = "system" | "graph" | "execution" | "info";
 
 interface IResponseMessage {
 	message: string;
@@ -36,7 +38,7 @@ class ResponseMessage implements IResponseMessage{
 	}
 }
 
-function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowProps) {
+function RunWindow({ onGraphMessage, subGraphs, onClear, onFlush , executionState }: RunWindowProps) {
 	const [responseMessages, setResponseMessages] = useState<ResponseMessage[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
 	//const [cachedGraphs, setCachedGraphs] = useState(false);
@@ -86,6 +88,7 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 
 	const handleRun = async () => {
 		if (isRunning) return;
+		onFlush();
 		setIsRunning(true);
 		//setResponseMessages([]);
 		if (onGraphMessage) onGraphMessage('root', { __EXECUTION: "running" });
@@ -144,12 +147,19 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 
 							}
 
-							if (parsed.status) {
+							if (parsed.type && parsed.type==="execution"){
+								setResponseMessages(prev => [...prev, new ResponseMessage({ message: jsonPart,type:"execution" })]);
+
+							}
+
+							if (parsed.status && !parsed.graph) {
 								//console.warn(parsed);
 								setResponseMessages(prev => [...prev, new ResponseMessage({ message: parsed.message||"--no message provided--",type:"system", error:parsed.status==="error" })]);
 
+								console.log("GOT STATUS", parsed);
+
 								if (onGraphMessage) {
-									onGraphMessage("root", { __EXECUTION: typeof parsed.status === "string"?parsed.status:(parsed.status?"running":"none") });
+									onGraphMessage("root", { __EXECUTION: parsed.status });
 								}
 								if (parsed.status === "success" || parsed.status === "error") {
 									setIsRunning(false);
@@ -214,14 +224,14 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 		}
 	}, [responseMessages]);
 
-	//useEffect(() => {
-//		setCachedState(executionState);
-//	}, [executionState]);
 
-	//const handleLeave = () => {if (onClose){onClose();}}
 	const handleClear = () => {
 		setResponseMessages([]);
 		onClear();
+	};
+
+	const handleFlush = () => {
+		onFlush();
 	};
 
 	const hasMessages = responseMessages.length > 0;
@@ -229,8 +239,8 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 	return (
 		<div style={{ height: "100%" }} className="oakd standardized-reset standardized-text">
 			<Space direction={"vertical"} gap>
-				<Paragraph></Paragraph>
-				<ButtonGroup>
+
+				<Space gap><ButtonGroup>
 					<Button
 						icon={isRunning ? "Spinner" : "Angle"}
 						type="primary"
@@ -244,9 +254,13 @@ function RunWindow({ onClose, onGraphMessage, subGraphs, onClear }: RunWindowPro
 						type="warning"
 						disabled={!hasMessages}
 					>
-						Clear Output
+						Clear Console
 					</Button>
 				</ButtonGroup>
+
+				{(executionState.status&&executionState.status !=="none"&&!isRunning)&&<Button onClick={handleFlush}>Reset State</Button> }
+				</Space>
+
 				<Space gap justify={"stretch"} wide>
 					<div
 						ref={outputRef}

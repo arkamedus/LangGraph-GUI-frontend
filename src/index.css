@@ -114,12 +114,6 @@ textarea {
   background-color: #d2e7ef;
 }
 
-.execution__container.running .debug-layer {
-    border-color: #8c4803;
-}
-.execution__container.running .debug-layer .header > .label {
-    background-color: #fce9d3;
-}
 
 .execution__container.success .debug-layer {
     border-color: #2a8660;
@@ -135,26 +129,25 @@ textarea {
     background-color: #eecaca;
 }
 
+.execution__container.running .debug-layer {
+  border-color: #8c4803;
+}
+.execution__container.running .debug-layer .header > .label {
+  background-color: #fce9d3;
+}
+
 .execution__container.running .execution__node {
 
 }
 
 .execution__container.running .execution__node{
   opacity: 1;
-  border: 1px solid #d0d0d0;
+  border: 1px solid #ababab;
 }
 .execution__container.running .execution__node .node__header {
   background: #e8e8e8;
 }
 
-
-.execution__container.running .execution__node.node__active {
-    opacity: 1;
-    border: 1px solid #8c4803;
-}
-.execution__container.running .execution__node.node__active .node__header {
-  background: #fce9d3;
-}
 
 
 
@@ -163,6 +156,49 @@ textarea {
     border: 1px solid #cc0000;
 }
 .execution__container.error .execution__node.node__active .node__header {
+  background: #fcd3d3;
+}
+
+
+
+.execution__container .execution__node.processing {
+  opacity: 1;
+  border: 1px solid #8c4803;
+}
+.execution__container .execution__node.processing .node__header {
+  background: #fce9d3;
+}
+
+.execution__container.running .execution__node.done,.execution__container.success .execution__node.done {
+  opacity: 1;
+  border: 1px solid #056719;
+}
+.execution__container.running .execution__node.done .node__header,.execution__container.success .execution__node.done .node__header {
+  background: #e8fcd3;
+}
+
+
+.execution__container.success .execution__node.none,
+.execution__container.error .execution__node.none
+{
+  opacity: 1;
+  border: 1px solid #656565;
+}
+.execution__container.success .execution__node.none .node__header ,
+.execution__container.error .execution__node.none .node__header
+{
+  background: #dedede;
+}
+
+
+
+
+
+.execution__container.error .execution__node.processing {
+  opacity: 1;
+  border: 1px solid #670517;
+}
+.execution__container.error .execution__node.processing .node__header {
   background: #fcd3d3;
 }
 
@@ -185,4 +221,10 @@ textarea {
   background-color: #ffa9a9;
   color: #801717;
   border-bottom: 1px solid #ff6060;
+}
+
+.terminal .entry.execution {
+  background-color: #bbffdd;
+  color: #18819a;
+  border-bottom: 1px solid #2d0e6c;
 }
