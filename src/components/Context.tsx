@@ -40,6 +40,8 @@ import ConfigWindow from "../GraphMenu/ConfigWindow";
 import CustomEdge from "../Graph/CustomEdge.tsx";
 import CustomNode from "../Graph/CustomNode.tsx";
 import {ExecutionNodeStatusType, ExecutionState} from "../Graph/NodeData.ts";
+import FileTree from "./FileTree.tsx";
+import ConfigManager from "../utils/ConfigManager.ts";
 
 interface Project {
 	name: string;
@@ -82,7 +84,7 @@ export const Context: React.FC = () => {
 		handleAddEdge
 	} = useGraphActions();
 
-	const {screenToFlowPosition, setCenter, fitView} = useReactFlow();
+	const {screenToFlowPosition, setCenter, fitView, getZoom, getNodes} = useReactFlow();
 
 	const [executionState, setExecutionState] = useState<ExecutionState>({
 		graph: "root",
@@ -116,7 +118,7 @@ export const Context: React.FC = () => {
 			if (newProject.graphs.length > 0) {
 				setCurrentGraphName(newProject.graphs[0].graphName);
 			}
-			centerSubGraph(5);
+			//centerSubGraph(5);
 
 		},
 		[currentProject, subGraphs, removeSubGraph, updateSubGraph, setCurrentProject, setProjects, setCurrentGraphName]
@@ -238,29 +240,29 @@ export const Context: React.FC = () => {
 		setTimeout(() => {
 			const cx = item.position.x + ((item.width || 200) / 2);
 			const cy = item.position.y + ((item.height || 200) / 2);
-			setCenter(cx, cy, {duration: 250, zoom: 1});
+			setCenter(cx, cy, {duration: 0, zoom: 1});
 		}, delay);
 	}
 
 	// Center a subgraph
-	function centerSubGraph(delay: number = 5) {
+	function centerSubGraph() {
 		console.log('fit');
 		setTimeout(() => {
-			fitView()
-		}, delay);
+			fitView({duration: 0})
+		}, 0);
 	}
 
 	function handleSelectItem(item: SubGraph | any, ancestry: SubGraph[]) {
 		if (item && "graphName" in item) {
 			setCurrentGraphName(item.graphName);
-			centerSubGraph();
+			//centerSubGraph();
 		} else if (item && item.position) {
 			const containingGraph = ancestry.length > 0 ? ancestry[ancestry.length - 1] : null;
 			if (containingGraph && containingGraph.graphName !== currentGraphName) {
 				setCurrentGraphName(containingGraph.graphName);
-				centerNode(item, 120);
+				centerNode(item, 0);
 			} else {
-				centerNode(item, 20);
+				centerNode(item, 0);
 			}
 		}
 		console.log("Selected:", item, "Ancestry:", ancestry);
@@ -279,6 +281,7 @@ export const Context: React.FC = () => {
 
 
 	const currentGraph = useMemo(() => getCurrentGraph(), [getCurrentGraph]);
+	const { username, llmModel, apiKey } = ConfigManager.getSettings();
 
 	const handleCloseContextMenu = useCallback(() => {
 		setContextMenu(null);
@@ -336,8 +339,32 @@ export const Context: React.FC = () => {
 		saveJsonToFile(`${currentProject?.name}.json`, jsonData);
 	}
 
+	useEffect(() => {
+		if (!executionState?.nodes) return;
 
-	const state = JSON.stringify(executionState);
+		// Get nodes with "processing" status
+		const processingNodes = Object.keys(executionState.nodes)
+			.filter(nodeId => executionState.nodes[nodeId].status === "processing");
+
+		if (processingNodes.length > 0) {
+			const allNodes = getNodes();
+			console.log('all', allNodes, processingNodes);
+
+			// Filter to only include nodes that are processing
+			const targetNodes = allNodes.filter(node => processingNodes.includes(node.id));
+
+			if (targetNodes.length > 0) {
+				fitView({
+					nodes: targetNodes,
+					duration: 300, // Smooth transition
+					padding: 0.2 // Add padding for visibility
+				});
+			}
+		}
+	}, [executionState]); // Runs every time executionState updates
+
+
+	const state = JSON.stringify(executionState,null,"\t");
 
 	return (
 		<Page fixed gap className={`oakd content pad execution__container ${getExecutionState().status}`}>
@@ -406,7 +433,7 @@ export const Context: React.FC = () => {
 							}} pad={"horizontal"}>
 								<Page style={{width: "100%", height: "100%"}} gap>
 									<Content grow>
-										<Card pad style={{width: "100%", height: "100%"}}>
+										<Card pad style={{width: "100%", height: "100%", overflowY:"scroll"}}>
 											<SubGraphTree
 												graphs={updatedGraphs}
 												onSelect={handleSelectItem}
@@ -451,13 +478,16 @@ export const Context: React.FC = () => {
 
 									</Content>
 									<Content>
-										<Card pad>
-											<Paragraph>TODO FILE BROWSER</Paragraph>
+										<Card>
+											<div style={{maxHeight:"200px", overflowY:"scroll"}} className={"oakd content pad"}>
+											<FileTree username={username} status={getExecutionState().status}/>
+											</div>
 										</Card>
 
 									</Content>
-									<Content><Card pad style={{background: "#eee"}}>
-                                        <textarea
+									<Content><Card style={{background: "#eee"}}>
+										<div style={{maxHeight:"100px", overflowY:"scroll"}} className={"oakd content pad"}>
+                                        <pre
 											style={{
 												display: "block",
 												fontSize: "6pt",
@@ -465,9 +495,8 @@ export const Context: React.FC = () => {
 												fontFamily: "monospace",
 												background: "none"
 											}}
-											rows={2}
-											value={state}
-										/>
+										>{state}</pre>
+										</div>
 									</Card></Content>
 
 								</Page>
@@ -490,16 +519,19 @@ export const Context: React.FC = () => {
 								}
 							>
 								<ReactFlow
-
+									key={currentGraphName}
 									nodes={currentGraph.nodes}
 									edges={currentGraph.edges}
+									fitView
+									fitViewOptions={{ padding: 2 }}
 									{...reactFlowProps}
 									nodeTypes={nodeTypes}
 									connectionLineStyle={{stroke: '#ddd', strokeWidth: 2}}
 
 								>
 									{/*<MiniMap/>*/}
-									<Background color={executionState.status === "running" ? "#666" : "#ccc"}/>
+
+									<Background color={"#666"}/>
 									<Controls/>
 								</ReactFlow>
 
@@ -629,7 +661,7 @@ export const Context: React.FC = () => {
 								resetState();
 							}
 							}
-						/>
+						 onClear={()=>{}}/>
 
 					</Content>
 

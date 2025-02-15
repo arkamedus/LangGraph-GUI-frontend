@@ -208,6 +208,10 @@ textarea {
 
 }
 
+.terminal .entry .paragraph {
+  font-size: 90%;
+}
+
 .terminal .entry {
   border-bottom: 1px solid #eee;
 }
